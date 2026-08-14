@@ -145,7 +145,7 @@
         {{-- KPI Table Section (appears after selecting division) --}}
         <div id="kpi_template_section" style="display:none;">
             <section class="bg-white rounded-lg shadow border border-gray-100">
-                <div class="p-6 border-b" style="background: linear-gradient(to right, #d97706, #f59e0b); border-radius: 12px 12px 0 0;">
+                <div class="p-6 border-b" style="background: linear-gradient(to right, #1f5f46, #287854); border-radius: 12px 12px 0 0;">
                     <h3 id="kpi_table_title" class="text-xl font-bold text-white">Template : KPI Table</h3>
                 </div>
                 <form method="POST" action="{{ route('admin.kpi-jd.kpi-template.save') }}">
@@ -157,15 +157,15 @@
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm" id="kpi_table">
                             <thead>
-                                <tr style="background:#f59e0b;">
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:50px;border:1px solid #d97706;">No.</th>
-                                    <th style="padding:10px 12px;text-align:left;font-weight:700;color:#fff;width:240px;border:1px solid #d97706;">Key Result Areas</th>
-                                    <th style="padding:10px 12px;text-align:left;font-weight:700;color:#fff;border:1px solid #d97706;">Key Performance Indicators</th>
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:80px;border:1px solid #d97706;">Weight of KPIs</th>
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:150px;border:1px solid #d97706;">Target</th>
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:120px;border:1px solid #d97706;">Actual</th>
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:80px;border:1px solid #d97706;">Score</th>
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:80px;border:1px solid #d97706;">Final Score</th>
+                                <tr style="background:#287854;">
+                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:50px;border:1px solid #1f5f46;">No.</th>
+                                    <th style="padding:10px 12px;text-align:left;font-weight:700;color:#fff;width:240px;border:1px solid #1f5f46;">Key Result Areas</th>
+                                    <th style="padding:10px 12px;text-align:left;font-weight:700;color:#fff;border:1px solid #1f5f46;">Key Performance Indicators</th>
+                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:80px;border:1px solid #1f5f46;">Weight of KPIs</th>
+                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:150px;border:1px solid #1f5f46;">Target</th>
+                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:120px;border:1px solid #1f5f46;">Actual</th>
+                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:80px;border:1px solid #1f5f46;">Score</th>
+                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:80px;border:1px solid #1f5f46;">Final Score</th>
                                 </tr>
                             </thead>
                             <tbody id="kpi_table_body"></tbody>
@@ -193,7 +193,7 @@
 
                     <div class="p-6 flex items-center gap-3">
                         <button type="button" onclick="addResultArea()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition"
-                            style="background-color:#d97706 !important; color:white !important; border:none; cursor:pointer;">
+                            style="background-color:#287854 !important; color:white !important; border:none; cursor:pointer;">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                             Add Result Area
                         </button>
