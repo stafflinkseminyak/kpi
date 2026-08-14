@@ -336,6 +336,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/kpi-jd', [AdminKpiJobController::class, 'index'])->name('kpi-jd.index');
 
         Route::get('/kpi-jd/kpi-template/{divisionId}/{subDivisionId?}/{positionId?}', [AdminKpiJobController::class, 'getKpiTemplate'])->name('kpi-jd.kpi-template');
+        Route::get('/kpi-jd/kpi-template-employee/{employeeId}', [AdminKpiJobController::class, 'getKpiTemplateForEmployee'])->name('kpi-jd.kpi-template-employee');
         Route::post('/kpi-jd/kpi-template/save', [AdminKpiJobController::class, 'saveKpiTemplate'])->name('kpi-jd.kpi-template.save');
         Route::delete('/kpi-jd/kpi-template/{template}', [AdminKpiJobController::class, 'destroyKpiTemplate'])->name('kpi-jd.kpi-template.destroy');
         Route::get('/kpi-jd/kpi-list', [AdminKpiJobController::class, 'kpiList'])->name('kpi-jd.kpi-list');

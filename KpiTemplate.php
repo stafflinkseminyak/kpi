@@ -9,7 +9,7 @@ class KpiTemplate extends Model
     protected $table = 'kpi_templates';
 
     protected $fillable = [
-        'division_id', 'sub_division_id', 'position_id', 'kpi_data', 'created_by',
+        'division_id', 'sub_division_id', 'position_id', 'employee_id', 'kpi_data', 'created_by',
     ];
 
     protected $casts = [
@@ -19,6 +19,7 @@ class KpiTemplate extends Model
     public function division() { return $this->belongsTo(Division::class); }
     public function subDivision() { return $this->belongsTo(SubDivision::class); }
     public function position() { return $this->belongsTo(Position::class); }
+    public function employee() { return $this->belongsTo(Employee::class); }
 
     /**
      * Find the template that applies to a given Division/Sub-Division/Position
@@ -27,6 +28,11 @@ class KpiTemplate extends Model
      * everyone under it until someone adds a more specific one. Shared by the KPI
      * builder page (AdminKpiJobController::getKpiTemplate, live AJAX preview) and
      * forEmployee() below, so both resolve a person's KPI the same way.
+     *
+     * Always excludes person-specific templates (employee_id set) — those are
+     * scoped to exactly one employee (see forEmployee()), and without this a
+     * personal override could accidentally get handed to a *different* employee
+     * who later shares that same Division/Sub-Division/Position.
      */
     public static function match($divisionId, $subDivisionId = null, $positionId = null): ?self
     {
@@ -34,7 +40,8 @@ class KpiTemplate extends Model
         $positionId = $positionId ?: null;
 
         if ($subDivisionId && $positionId) {
-            $exact = self::where('division_id', $divisionId)
+            $exact = self::whereNull('employee_id')
+                ->where('division_id', $divisionId)
                 ->where('sub_division_id', $subDivisionId)
                 ->where('position_id', $positionId)
                 ->first();
@@ -44,7 +51,8 @@ class KpiTemplate extends Model
         }
 
         if ($subDivisionId) {
-            $bySubDivision = self::where('division_id', $divisionId)
+            $bySubDivision = self::whereNull('employee_id')
+                ->where('division_id', $divisionId)
                 ->where('sub_division_id', $subDivisionId)
                 ->whereNull('position_id')
                 ->first();
@@ -53,7 +61,8 @@ class KpiTemplate extends Model
             }
         }
 
-        return self::where('division_id', $divisionId)
+        return self::whereNull('employee_id')
+            ->where('division_id', $divisionId)
             ->whereNull('sub_division_id')
             ->whereNull('position_id')
             ->first();
@@ -69,9 +78,16 @@ class KpiTemplate extends Model
      * template may actually be the one that applies to some of them once
      * match()'s fallback runs — this is an informational "who's in scope" list,
      * not a precise "this exact template is theirs" guarantee.
+     *
+     * A person-specific template (employee_id set) skips all of that — it's
+     * always exactly the one employee it was made for.
      */
     public function assignedEmployees()
     {
+        if ($this->employee_id) {
+            return $this->employee ? collect([$this->employee]) : collect();
+        }
+
         return \App\Models\Employee::whereHas('contract', function ($q) {
             $q->where('division_id', $this->division_id);
             // Laravel's `column->key` JSON path syntax compiles to the right
@@ -93,12 +109,19 @@ class KpiTemplate extends Model
 
     /**
      * The reverse lookup of assignedEmployees(): given an employee, find the KPI
-     * template that applies to them via their contract (division_id column +
-     * sub_division_id/position_id stored in contracts.form_data). Returns null if
-     * the employee has no contract, or no template has been set up for them yet.
+     * template that applies to them. A person-specific override (employee_id ===
+     * $employee->id) always wins when one exists — e.g. an in-house promotion
+     * that added/changed KPIs for just this person without a new Contract.
+     * Otherwise falls back to their contract's Division/Sub-Division/Position via
+     * match(), same as before. Returns null only if neither exists.
      */
     public static function forEmployee(\App\Models\Employee $employee): ?self
     {
+        $personal = self::where('employee_id', $employee->id)->first();
+        if ($personal) {
+            return $personal;
+        }
+
         $contract = $employee->contract;
         if (!$contract) {
             return null;
@@ -193,6 +216,38 @@ class KpiTemplate extends Model
         }
 
         return $groups;
+    }
+
+    /**
+     * A single-number "how's this person doing overall" rollup across every
+     * indicator in every area — the weighted average goalGroups() computes per
+     * area, taken one level higher. Used by the Employee Profile KPI tab for a
+     * compact summary + motivational message; the full per-area/per-indicator
+     * detail (goalGroups()) is what the Performance page shows instead.
+     */
+    public function overallSummary(): array
+    {
+        $allIndicators = collect($this->goalGroups())->flatMap(fn ($g) => $g['indicators']);
+        $computable = $allIndicators->filter(fn ($i) => $i['pct'] !== null);
+
+        $totalWeight = $computable->sum(fn ($i) => $i['weight'] ?? 0);
+        $weightedSum = $computable->sum(fn ($i) => $i['pct'] * ($i['weight'] ?? 0));
+
+        $overallPct = null;
+        if ($computable->count()) {
+            $overallPct = $totalWeight > 0
+                ? (int) round($weightedSum / $totalWeight)
+                : (int) round($computable->avg('pct'));
+        }
+
+        return [
+            'overall_pct' => $overallPct,
+            'status' => self::statusFor($overallPct),
+            'total_indicators' => $allIndicators->count(),
+            'achieved_count' => $allIndicators->filter(fn ($i) => ($i['pct'] ?? -1) >= 100)->count(),
+            'at_risk_count' => $allIndicators->filter(fn ($i) => $i['pct'] !== null && $i['pct'] < 50)->count(),
+            'no_data_count' => $allIndicators->filter(fn ($i) => $i['pct'] === null)->count(),
+        ];
     }
 
     private static function parseNumeric($value, ?string $type = null): ?float

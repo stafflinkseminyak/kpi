@@ -33,43 +33,73 @@
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {{-- KPI Template Box — sticky so it stays in view while the Saved
              Templates list next to it grows long and gets scrolled through. --}}
-        <section class="bg-white rounded-lg shadow border border-gray-100 xl:sticky xl:top-6">
-            <div class="p-6 border-b">
-                <h3 class="text-lg font-semibold text-gray-900">KPI Template</h3>
-                <p class="text-sm text-gray-500 mt-1">Set KPI targets for each division, sub-division, and position.</p>
+        <section id="kpi_template_card" class="bg-white rounded-lg shadow border border-gray-100 xl:sticky xl:top-6">
+            <div class="p-4 border-b">
+                <h3 class="text-base font-semibold text-gray-900">KPI Template</h3>
+                <p class="text-xs text-gray-500 mt-1">Set KPI targets for each division, sub-division, and position — or for one specific person.</p>
             </div>
-            <div class="p-6 border-b bg-gray-50/40">
-                <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-                    <div class="md:col-span-4">
-                        <label for="kpi_division_select" class="block text-sm font-medium text-gray-700 mb-2">Division</label>
+
+            {{-- Two scopes for a KPI: shared by everyone in a Position (default), or a
+                 one-off for a specific Employee — e.g. an in-house promotion that adds/
+                 changes KPIs for just them without a new Contract. A personal KPI always
+                 takes priority over the position one when resolving someone's KPI (see
+                 KpiTemplate::forEmployee()), and starts as a copy of their current
+                 position KPI so nothing has to be retyped. --}}
+            <div class="px-4 pt-3 flex gap-1.5">
+                <button type="button" id="kpi_mode_position_btn" onclick="switchKpiMode('position')"
+                    class="px-3 py-1 text-xs font-semibold rounded-md transition" style="background:#287854;color:#fff;border:none;cursor:pointer;">
+                    By Position
+                </button>
+                <button type="button" id="kpi_mode_person_btn" onclick="switchKpiMode('person')"
+                    class="px-3 py-1 text-xs font-semibold rounded-md transition" style="background:#f3f4f6;color:#374151;border:none;cursor:pointer;">
+                    By Person
+                </button>
+            </div>
+
+            <div id="kpi_mode_position_fields" class="p-3 border-b bg-gray-50/40">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-x-3 gap-y-1.5 items-end">
+                    <div class="md:col-span-6">
+                        <label for="kpi_division_select" class="block text-[11px] font-medium text-gray-700 mb-0.5">Division</label>
                         <select id="kpi_division_select"
-                            class="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#287854] focus:border-transparent bg-white">
+                            class="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:ring-2 focus:ring-[#287854] focus:border-transparent bg-white">
                             <option value="">Select division</option>
                             @foreach ($divisions as $division)
                                 <option value="{{ $division->id }}">{{ $division->name }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <div class="md:col-span-4">
-                        <label for="kpi_sub_division_select" class="block text-sm font-medium text-gray-700 mb-2">Sub-Division</label>
+                    <div class="md:col-span-6">
+                        <label for="kpi_sub_division_select" class="block text-[11px] font-medium text-gray-700 mb-0.5">Sub-Division</label>
                         <select id="kpi_sub_division_select"
-                            class="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#287854] focus:border-transparent bg-white">
+                            class="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:ring-2 focus:ring-[#287854] focus:border-transparent bg-white">
                             <option value="">Select sub-division</option>
                         </select>
                     </div>
-                    <div class="md:col-span-4">
-                        <label for="kpi_position_select" class="block text-sm font-medium text-gray-700 mb-2">Position</label>
+                    <div class="md:col-span-6">
+                        <label for="kpi_position_select" class="block text-[11px] font-medium text-gray-700 mb-0.5">Position</label>
                         <select id="kpi_position_select"
-                            class="w-full px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#287854] focus:border-transparent bg-white">
+                            class="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:ring-2 focus:ring-[#287854] focus:border-transparent bg-white">
                             <option value="">Select position</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-            <div id="kpi_placeholder" class="p-8 text-center text-gray-400">
-                <svg class="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                <p class="text-sm">Select a division to view or set KPI targets.</p>
+            <div id="kpi_mode_person_fields" class="p-3 border-b bg-gray-50/40" style="display:none;">
+                <label for="kpi_employee_select" class="block text-[11px] font-medium text-gray-700 mb-0.5">Employee</label>
+                <select id="kpi_employee_select"
+                    class="w-full px-2 py-1 text-xs border border-gray-200 rounded-md focus:ring-2 focus:ring-[#287854] focus:border-transparent bg-white">
+                    <option value="">Select employee</option>
+                    @foreach ($employeesForKpiPicker ?? [] as $emp)
+                        <option value="{{ $emp->id }}">{{ $emp->full_name }}</option>
+                    @endforeach
+                </select>
+                <p class="text-[10px] text-gray-400 mt-1">Starts as a copy of their current position KPI — edit/add rows and save, and it becomes theirs specifically (their shared position template is untouched).</p>
+            </div>
+
+            <div id="kpi_placeholder" class="p-6 text-center text-gray-400">
+                <svg class="mx-auto h-10 w-10 text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                <p class="text-xs">Select a division to view or set KPI targets.</p>
             </div>
         </section>
 
@@ -77,32 +107,37 @@
              column stays narrow enough to sit side-by-side without needing a
              horizontal scroll for the buttons. --}}
         <section class="bg-white rounded-lg shadow border border-gray-100">
-            <div class="p-6 border-b">
-                <h3 class="text-lg font-semibold text-gray-900">Saved KPI Templates</h3>
-                <p class="text-sm text-gray-500 mt-1">Templates already configured for divisions.</p>
+            <div class="p-4 border-b">
+                <h3 class="text-base font-semibold text-gray-900">Saved KPI Templates</h3>
+                <p class="text-xs text-gray-500 mt-1">Templates already configured for divisions.</p>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead class="bg-[#e6f1ec]">
                         <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Division</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sub-Division</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Areas</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Employees</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Division</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Sub-Division</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Position</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Areas</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Assigned</th>
+                            <th class="px-2 py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
-                        @php $templates = \App\Models\KpiTemplate::with(['division', 'subDivision', 'position'])->latest()->get(); @endphp
+                        @php $templates = \App\Models\KpiTemplate::with(['division', 'subDivision', 'position', 'employee'])->latest()->get(); @endphp
                         @forelse ($templates as $tpl)
                         @php $assigned = $tpl->assignedEmployees(); @endphp
                         <tr class="hover:bg-gray-50 transition">
-                            <td class="px-4 py-4 text-sm font-medium text-gray-900">{{ $tpl->division?->name ?? '-' }}</td>
-                            <td class="px-4 py-4 text-sm text-gray-600">{{ $tpl->subDivision?->name ?? 'All' }}</td>
-                            <td class="px-4 py-4 text-sm text-gray-600">{{ $tpl->position?->name ?? 'All' }}</td>
-                            <td class="px-4 py-4 text-sm text-gray-600">@php $kd = $tpl->kpi_data ?? []; $cnt = collect($kd)->filter(fn($v,$k) => is_numeric($k))->count(); @endphp {{ $cnt }} areas</td>
-                            <td class="px-4 py-4 text-sm text-gray-600">
+                            <td class="px-2 py-2 text-xs font-medium text-gray-900">{{ $tpl->division?->name ?? '-' }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">{{ $tpl->subDivision?->name ?? 'All' }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">
+                                {{ $tpl->position?->name ?? 'All' }}
+                                @if($tpl->employee_id)
+                                    <br><span style="display:inline-block;margin-top:2px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:#ede9fe;color:#5b21b6;white-space:nowrap;">👤 {{ $tpl->employee?->full_name ?? 'Personal' }}</span>
+                                @endif
+                            </td>
+                            <td class="px-2 py-2 text-xs text-gray-600">@php $kd = $tpl->kpi_data ?? []; $cnt = collect($kd)->filter(fn($v,$k) => is_numeric($k))->count(); @endphp {{ $cnt }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">
                                 @if($assigned->isEmpty())
                                     <span class="text-gray-400 italic">No one yet</span>
                                 @else
@@ -112,25 +147,44 @@
                                     </span>
                                 @endif
                             </td>
-                            <td class="px-4 py-4 text-right relative">
+                            <td class="px-2 py-2 text-right relative">
                                 @php
-                                    $warnLabel = $tpl->division?->name . ' — ' . ($tpl->subDivision?->name ?? 'All') . ($tpl->position ? ' — ' . $tpl->position->name : '');
+                                    $warnLabel = $tpl->employee_id
+                                        ? 'Personal KPI — ' . ($tpl->employee?->full_name ?? 'this employee')
+                                        : $tpl->division?->name . ' — ' . ($tpl->subDivision?->name ?? 'All') . ($tpl->position ? ' — ' . $tpl->position->name : '');
                                     $warnAssigned = $assigned->isNotEmpty()
                                         ? 'This is currently linked to ' . $assigned->count() . ' ' . \Illuminate\Support\Str::plural('employee', $assigned->count()) . ' (' . $assigned->pluck('full_name')->implode(', ') . ') — deleting it removes their KPI/progress too.'
                                         : '';
                                 @endphp
                                 <button type="button" onclick="toggleActionsMenu(event, {{ $tpl->id }})" title="Actions"
-                                    class="inline-flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+                                    class="inline-flex items-center justify-center w-7 h-7 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
                                 </button>
-                                <div id="actions-menu-{{ $tpl->id }}" class="actions-menu" style="display:none;position:fixed;z-index:1000;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:150px;overflow:hidden;">
+                                <div id="actions-menu-{{ $tpl->id }}" class="actions-menu" style="display:none;position:fixed;z-index:1000;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:140px;overflow:hidden;">
+                                    @if($tpl->employee_id)
+                                    <button type="button" onclick="loadPersonalTemplate({{ $tpl->employee_id }}); closeAllActionMenus();"
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/><path d="M17.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 8.5-8.5z"/></svg>
+                                        Edit
+                                    </button>
+                                    @else
                                     <button type="button" onclick="loadTemplate({{ $tpl->division_id }}, {{ $tpl->sub_division_id ?? 'null' }}, {{ $tpl->position_id ?? 'null' }}); closeAllActionMenus();"
-                                        class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">✏️ Edit</button>
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/><path d="M17.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 8.5-8.5z"/></svg>
+                                        Edit
+                                    </button>
+                                    @endif
                                     <button type="button" onclick='duplicateTemplate(@json($tpl->kpi_data)); closeAllActionMenus();'
                                         title="Copy this template's KPI table into a new Division/Sub-Division/Position"
-                                        class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">📋 Duplicate</button>
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                        Duplicate
+                                    </button>
                                     <button type="button" onclick='openDeleteConfirm({{ $tpl->id }}, @json($warnLabel), @json($warnAssigned))'
-                                        class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">🗑️ Delete</button>
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12"/><path d="M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+                                        Delete
+                                    </button>
                                 </div>
                                 <form method="POST" action="{{ route('admin.kpi-jd.kpi-template.destroy', $tpl->id) }}" id="delete-form-{{ $tpl->id }}" style="display:none;">
                                     @csrf
@@ -139,7 +193,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="6" class="px-6 py-8 text-center text-gray-400 text-sm">No KPI templates saved yet.</td></tr>
+                        <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 text-xs">No KPI templates saved yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -170,27 +224,28 @@
         {{-- KPI Table Section (appears after selecting division) --}}
         <div id="kpi_template_section" style="display:none;">
             <section class="bg-white rounded-lg shadow border border-gray-100">
-                <div class="p-6 border-b" style="background: linear-gradient(to right, #1f5f46, #287854); border-radius: 12px 12px 0 0;">
-                    <h3 id="kpi_table_title" class="text-xl font-bold text-white">Template : KPI Table</h3>
+                <div class="p-4 border-b" style="background: linear-gradient(to right, #1f5f46, #287854); border-radius: 12px 12px 0 0;">
+                    <h3 id="kpi_table_title" class="text-base font-bold text-white">Template : KPI Table</h3>
                 </div>
                 <form method="POST" action="{{ route('admin.kpi-jd.kpi-template.save') }}">
                     @csrf
                     <input type="hidden" name="division_id" id="form_division_id">
                     <input type="hidden" name="sub_division_id" id="form_sub_division_id">
                     <input type="hidden" name="position_id" id="form_position_id">
+                    <input type="hidden" name="employee_id" id="form_employee_id">
 
                     <div class="overflow-x-auto">
-                        <table class="w-full text-sm" id="kpi_table">
+                        <table class="w-full text-xs" id="kpi_table">
                             <thead>
                                 <tr style="background:#287854;">
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:50px;border:1px solid #1f5f46;">No.</th>
-                                    <th style="padding:10px 12px;text-align:left;font-weight:700;color:#fff;width:240px;border:1px solid #1f5f46;">Key Result Areas</th>
-                                    <th style="padding:10px 12px;text-align:left;font-weight:700;color:#fff;border:1px solid #1f5f46;">Key Performance Indicators</th>
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:80px;border:1px solid #1f5f46;">Weight of KPIs</th>
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:150px;border:1px solid #1f5f46;">Target</th>
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:120px;border:1px solid #1f5f46;">Actual</th>
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:80px;border:1px solid #1f5f46;">Score</th>
-                                    <th style="padding:10px 12px;text-align:center;font-weight:700;color:#fff;width:80px;border:1px solid #1f5f46;">Final Score</th>
+                                    <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:36px;border:1px solid #1f5f46;">No.</th>
+                                    <th style="padding:7px 9px;text-align:left;font-weight:700;color:#fff;width:200px;border:1px solid #1f5f46;">Key Result Areas</th>
+                                    <th style="padding:7px 9px;text-align:left;font-weight:700;color:#fff;border:1px solid #1f5f46;">Key Performance Indicators</th>
+                                    <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:60px;border:1px solid #1f5f46;">Weight</th>
+                                    <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:130px;border:1px solid #1f5f46;">Target</th>
+                                    <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:100px;border:1px solid #1f5f46;">Actual</th>
+                                    <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:60px;border:1px solid #1f5f46;">Score</th>
+                                    <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:65px;border:1px solid #1f5f46;">Final</th>
                                 </tr>
                             </thead>
                             <tbody id="kpi_table_body"></tbody>
@@ -198,38 +253,39 @@
                     </div>
 
                     {{-- Running total of Weight of KPIs — flags early if it doesn't add up to 100% --}}
-                    <div id="weight_total_banner" style="display:none;margin:14px 24px 20px;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;"></div>
+                    <div id="weight_total_banner" style="display:none;margin:12px 20px 16px;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;"></div>
 
                     {{-- YTD Dashboard Section — visually separated from the KPI table above it
                          so the two don't read as one crammed block. --}}
                     <div id="ytd_dashboard_section" style="display:none;">
-                        <div style="padding:24px 24px 16px;margin:0 24px 20px;border-top:3px solid #e5e7eb;background:#fafafa;border-radius:0 0 8px 8px;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                                <h3 style="font-size:18px;font-weight:700;color:#1f2937;margin:0;">📊 YTD Dashboard</h3>
-                                <div style="display:flex;gap:8px;align-items:center;">
-                                    <span style="font-size:12px;color:#6b7280;border:1px solid #d1d5db;padding:4px 10px;border-radius:4px;">Select YTD Month</span>
-                                    <span style="font-size:12px;font-weight:600;color:#1f2937;border:1px solid #d1d5db;padding:4px 10px;border-radius:4px;">JUN</span>
-                                    <span style="font-size:12px;font-weight:600;color:#1f2937;border:1px solid #d1d5db;padding:4px 10px;border-radius:4px;">2020-21</span>
+                        <div style="padding:18px 20px 12px;margin:0 20px 16px;border-top:3px solid #e5e7eb;background:#fafafa;border-radius:0 0 8px 8px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                                <h3 style="font-size:15px;font-weight:700;color:#1f2937;margin:0;">📊 YTD Dashboard</h3>
+                                <div style="display:flex;gap:6px;align-items:center;">
+                                    <span style="font-size:11px;color:#6b7280;border:1px solid #d1d5db;padding:3px 8px;border-radius:4px;">Select YTD Month</span>
+                                    <span style="font-size:11px;font-weight:600;color:#1f2937;border:1px solid #d1d5db;padding:3px 8px;border-radius:4px;">JUN</span>
+                                    <span style="font-size:11px;font-weight:600;color:#1f2937;border:1px solid #d1d5db;padding:3px 8px;border-radius:4px;">2020-21</span>
                                 </div>
                             </div>
-                            <div id="ytd_cards_grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;padding-bottom:20px;"></div>
+                            <div id="ytd_cards_grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding-bottom:16px;"></div>
                         </div>
                     </div>
 
-                    <div class="p-6 flex items-center gap-3">
-                        <button type="button" onclick="addResultArea()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition"
+                    <div class="p-3 flex items-center gap-1.5">
+                        <button type="button" onclick="addResultArea()" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md transition"
                             style="background-color:#287854 !important; color:white !important; border:none; cursor:pointer;">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                             Add Result Area
                         </button>
-                        <button type="button" onclick="showKpiPreview()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition"
+                        <button type="button" onclick="showKpiPreview()" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md transition"
                             style="background-color:#1f5f46 !important; color:white !important; border:none; cursor:pointer;">
-                            👀 Preview on Performance
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.5 12s3.75-7 10.5-7 10.5 7 10.5 7-3.75 7-10.5 7-10.5-7-10.5-7z"/><circle cx="12" cy="12" r="2.5" stroke-width="2"/></svg>
+                            Preview on Performance
                         </button>
                         @if($isSuperAdmin)
-                        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-lg shadow transition"
+                        <button type="submit" class="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white rounded-md shadow transition"
                             style="background-color:#16a34a !important; color:white !important; border:none; cursor:pointer;">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             Save KPI Template
                         </button>
                         @endif
@@ -237,6 +293,104 @@
                 </form>
             </section>
         </div>
+
+        {{-- Everyone with a contract but no KPI template resolving to them yet (same
+             Division/Sub-Division/Position resolution as KpiTemplate::forEmployee(),
+             so this can never disagree with the Performance page or Employee Profile
+             about who's "covered"). A to-do list — click through to pre-fill the
+             builder above with that person's scope. --}}
+        @if($employeesNeedingKpi->isNotEmpty() || ($employeesWithoutContractCount ?? 0) > 0)
+        <section class="bg-white rounded-lg shadow border border-gray-100">
+            <div class="p-4 border-b">
+                <h3 class="text-base font-semibold text-gray-900">📋 Employees Needing a KPI</h3>
+                <p class="text-xs text-gray-500 mt-1">
+                    {{ $employeesNeedingKpi->count() }} {{ \Illuminate\Support\Str::plural('employee', $employeesNeedingKpi->count()) }} need{{ $employeesNeedingKpi->count() === 1 ? 's' : '' }} a KPI
+                    @if(($employeesAlreadyCoveredCount ?? 0) > 0)
+                        · {{ $employeesAlreadyCoveredCount }} already {{ $employeesAlreadyCoveredCount === 1 ? 'has' : 'have' }} one
+                    @endif
+                    @if(($employeesWithoutContractCount ?? 0) > 0)
+                        · {{ $employeesWithoutContractCount }} {{ \Illuminate\Support\Str::plural('employee', $employeesWithoutContractCount) }} not showing — see below
+                    @endif
+                </p>
+            </div>
+            @if($employeesNeedingKpi->isNotEmpty())
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead style="background:#fef3c7;">
+                        <tr>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#92400e;">Employee</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#92400e;">Division</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#92400e;">Sub-Division</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#92400e;">Position</th>
+                            <th class="px-2 py-2 text-right text-[11px] font-medium uppercase tracking-wider" style="color:#92400e;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach($employeesNeedingKpi as $row)
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-2 py-2 text-xs font-medium text-gray-900">{{ $row['employee']->full_name }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">{{ $row['division_name'] ?? '—' }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">{{ $row['sub_division_name'] ?? 'All' }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">{{ $row['position_name'] ?? 'All' }}</td>
+                            <td class="px-2 py-2 text-right">
+                                <button type="button"
+                                    onclick="createKpiForEmployee({{ $row['division_id'] ?? 'null' }}, {{ $row['sub_division_id'] ?? 'null' }}, {{ $row['position_id'] ?? 'null' }})"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition"
+                                    style="background-color:#287854 !important; color:white !important; border:none; cursor:pointer;">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                                    Create KPI
+                                </button>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @endif
+
+            {{-- Not an "action" list like the one above — a data-fixing list. These
+                 employees' Employee record has no contract_id linked, so their
+                 Division/Sub-Division/Position can't be resolved at all (same reason
+                 they'd be missing from a Saved Template's "Assigned" count too).
+                 Fix the link on their profile first, then they'll fall into the
+                 KPI-needed list above like everyone else. --}}
+            @if($employeesWithoutContractCount > 0)
+            <div class="border-t border-gray-100">
+                <div class="px-4 pt-3 pb-1">
+                    <p class="text-xs font-semibold" style="color:#991b1b;">⚠️ {{ $employeesWithoutContractCount }} {{ \Illuminate\Support\Str::plural('employee', $employeesWithoutContractCount) }} not shown above — profile isn't linked to a Contract yet, so their Division/Position is unknown.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead style="background:#fee2e2;">
+                            <tr>
+                                <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Employee</th>
+                                <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Division (from profile)</th>
+                                <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Status</th>
+                                <th class="px-2 py-2 text-right text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($employeesWithoutContract as $e)
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="px-2 py-2 text-xs font-medium text-gray-900">{{ $e->full_name }}</td>
+                                <td class="px-2 py-2 text-xs text-gray-600">{{ $e->division?->name ?? '—' }}</td>
+                                <td class="px-2 py-2 text-xs text-gray-600">{{ ucfirst(str_replace('-', ' ', $e->status)) }}</td>
+                                <td class="px-2 py-2 text-right">
+                                    <a href="{{ route('admin.linkers-hub.employee-profile', $e->id) }}"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition"
+                                        style="background-color:#991b1b !important; color:white !important; text-decoration:none;">
+                                        View Profile
+                                    </a>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            @endif
+        </section>
+        @endif
 
         {{-- Preview modal: a rough mockup of how this KPI table's indicators would look
              as motivational "Goals & KPI" cards on the Performance page — built from
@@ -263,6 +417,12 @@
         var formDiv = document.getElementById('form_division_id');
         var formSubDiv = document.getElementById('form_sub_division_id');
         var formPos = document.getElementById('form_position_id');
+        var formEmployee = document.getElementById('form_employee_id');
+        var employeeSelect = document.getElementById('kpi_employee_select');
+        var kpiModePositionFields = document.getElementById('kpi_mode_position_fields');
+        var kpiModePersonFields = document.getElementById('kpi_mode_person_fields');
+        var kpiModePositionBtn = document.getElementById('kpi_mode_position_btn');
+        var kpiModePersonBtn = document.getElementById('kpi_mode_person_btn');
         var section = document.getElementById('kpi_template_section');
         var placeholder = document.getElementById('kpi_placeholder');
         var tbody = document.getElementById('kpi_table_body');
@@ -377,24 +537,35 @@
             indicators.forEach(function(ind, indIdx) {
                 var tr = document.createElement('tr');
                 tr.style.borderBottom = '1px solid #e5e7eb';
+                tr.dataset.areaIdx = areaIdx;
+                tr.dataset.indIdx = indIdx;
 
                 if (indIdx === 0) {
                     var tdNo = document.createElement('td');
-                    tdNo.style.cssText = 'padding:8px 12px;text-align:center;border:1px solid #e5e7eb;vertical-align:top;font-weight:700;color:#374151;';
+                    tdNo.style.cssText = 'padding:6px 9px;text-align:center;border:1px solid #e5e7eb;vertical-align:top;font-weight:700;color:#374151;';
                     tdNo.textContent = areaCounter;
                     tdNo.rowSpan = indicators.length;
                     tr.appendChild(tdNo);
 
                     var tdArea = document.createElement('td');
-                    tdArea.style.cssText = 'padding:8px 12px;border:1px solid #e5e7eb;vertical-align:top;';
+                    tdArea.style.cssText = 'padding:6px 9px;border:1px solid #e5e7eb;vertical-align:top;';
                     tdArea.rowSpan = indicators.length;
                     var areaInput = document.createElement('input');
                     areaInput.type = 'text'; areaInput.name = 'kpi_data[' + areaIdx + '][key_result_area]'; areaInput.value = area.key_result_area || '';
                     areaInput.placeholder = 'e.g. Recruitment';
                     if (areaInput.value) areaInput.title = areaInput.value;
                     areaInput.addEventListener('input', function() { areaInput.title = areaInput.value; });
-                    areaInput.style.cssText = 'width:100%;border:1px solid #e5e7eb;border-radius:4px;padding:4px 8px;font-size:13px;font-weight:600;';
+                    areaInput.style.cssText = 'width:100%;border:1px solid #e5e7eb;border-radius:4px;padding:4px 7px;font-size:12px;font-weight:600;';
                     tdArea.appendChild(areaInput);
+
+                    var addIndBtn = document.createElement('button');
+                    addIndBtn.type = 'button';
+                    addIndBtn.title = 'Add another indicator to this area';
+                    addIndBtn.textContent = '+ Add Indicator';
+                    addIndBtn.style.cssText = 'margin-top:5px;background:none;border:none;padding:0;font-size:10px;font-weight:600;color:#287854;cursor:pointer;';
+                    addIndBtn.addEventListener('click', function() { addIndicatorRow(tr); });
+                    tdArea.appendChild(addIndBtn);
+
                     tr.appendChild(tdArea);
 
                     var hiddenNo = document.createElement('input'); hiddenNo.type = 'hidden'; hiddenNo.name = 'kpi_data[' + areaIdx + '][no]'; hiddenNo.value = areaCounter;
@@ -402,12 +573,12 @@
                 }
 
                 var fields = [
-                    { key: 'kpi', ph: 'Key Performance Indicator', w: '100%', cell: 'padding:8px 12px;border:1px solid #e5e7eb;' },
-                    { key: 'weight', ph: '-', w: '60px', cell: 'padding:8px 12px;text-align:center;border:1px solid #e5e7eb;' },
-                    { key: 'target', ph: 'Target', w: '130px', cell: 'padding:8px 12px;text-align:center;border:1px solid #e5e7eb;' },
-                    { key: 'actual', ph: '-', w: '100px', cell: 'padding:8px 12px;text-align:center;border:1px solid #e5e7eb;background:#fff7ed;' },
-                    { key: 'score', ph: '-', w: '60px', cell: 'padding:8px 12px;text-align:center;border:1px solid #e5e7eb;' },
-                    { key: 'final_score', ph: '-', w: '60px', cell: 'padding:8px 12px;text-align:center;border:1px solid #e5e7eb;' }
+                    { key: 'kpi', ph: 'Key Performance Indicator', w: '100%', cell: 'padding:6px 9px;border:1px solid #e5e7eb;' },
+                    { key: 'weight', ph: '-', w: '60px', cell: 'padding:6px 9px;text-align:center;border:1px solid #e5e7eb;' },
+                    { key: 'target', ph: 'Target', w: '130px', cell: 'padding:6px 9px;text-align:center;border:1px solid #e5e7eb;' },
+                    { key: 'actual', ph: '-', w: '100px', cell: 'padding:6px 9px;text-align:center;border:1px solid #e5e7eb;background:#fff7ed;' },
+                    { key: 'score', ph: '-', w: '60px', cell: 'padding:6px 9px;text-align:center;border:1px solid #e5e7eb;' },
+                    { key: 'final_score', ph: '-', w: '60px', cell: 'padding:6px 9px;text-align:center;border:1px solid #e5e7eb;' }
                 ];
 
                 fields.forEach(function(f) {
@@ -435,7 +606,7 @@
                         var targetInput = document.createElement('input'); targetInput.type = 'text';
                         targetInput.name = 'kpi_data[' + areaIdx + '][indicators][' + indIdx + '][target]';
                         targetInput.value = ind.target || ''; targetInput.placeholder = f.ph;
-                        targetInput.style.cssText = 'flex:1;min-width:0;border:1px solid #e5e7eb;border-radius:4px;padding:4px 6px;font-size:13px;text-align:center;';
+                        targetInput.style.cssText = 'flex:1;min-width:0;border:1px solid #e5e7eb;border-radius:4px;padding:4px 6px;font-size:12px;text-align:center;';
                         if (targetInput.value) targetInput.title = targetInput.value;
                         targetInput.addEventListener('input', function() { targetInput.title = targetInput.value; });
                         targetInput.addEventListener('blur', function() {
@@ -459,12 +630,77 @@
                     // KPI/target text) is still readable without needing to click into the field.
                     if (input.value) input.title = input.value;
                     input.addEventListener('input', function() { input.title = input.value; });
-                    input.style.cssText = 'width:' + f.w + ';border:1px solid #e5e7eb;border-radius:4px;padding:4px 6px;font-size:13px;text-align:' + (f.key === 'kpi' ? 'left' : 'center') + ';' + (f.key === 'actual' ? 'font-weight:700;border-color:#fed7aa;' : '');
+                    input.style.cssText = 'width:' + f.w + ';border:1px solid #e5e7eb;border-radius:4px;padding:4px 6px;font-size:12px;text-align:' + (f.key === 'kpi' ? 'left' : 'center') + ';' + (f.key === 'actual' ? 'font-weight:700;border-color:#fed7aa;' : '');
+
+                    // The KPI/indicator cell also carries a small delete-row ("x") button so an
+                    // unwanted indicator (e.g. an unused extra row within an area) can be removed
+                    // without retyping everything else.
+                    if (f.key === 'kpi') {
+                        var kpiWrap = document.createElement('div'); kpiWrap.style.cssText = 'display:flex;gap:4px;align-items:center;';
+                        input.style.width = '100%'; input.style.flex = '1'; input.style.minWidth = '0';
+                        var delBtn = document.createElement('button');
+                        delBtn.type = 'button'; delBtn.title = 'Remove this indicator';
+                        delBtn.style.cssText = 'flex-shrink:0;display:flex;align-items:center;justify-content:center;width:18px;height:18px;border:none;background:none;color:#9ca3af;cursor:pointer;border-radius:4px;';
+                        delBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>';
+                        delBtn.addEventListener('mouseenter', function() { delBtn.style.color = '#dc2626'; delBtn.style.background = '#fee2e2'; });
+                        delBtn.addEventListener('mouseleave', function() { delBtn.style.color = '#9ca3af'; delBtn.style.background = 'none'; });
+                        delBtn.addEventListener('click', function() { removeIndicatorRow(tr); });
+                        kpiWrap.appendChild(input); kpiWrap.appendChild(delBtn);
+                        td.appendChild(kpiWrap); tr.appendChild(td);
+                        return;
+                    }
+
                     td.appendChild(input); tr.appendChild(td);
                 });
 
                 tbody.appendChild(tr);
             });
+        }
+
+        // Reconstructs the full { key_result_area, indicators: [...] } structure straight
+        // from whatever is currently typed into the table — used so adding/removing a single
+        // indicator row can re-render the whole table (correct rowSpans, re-indexed field
+        // names) without losing anything the user already filled in elsewhere.
+        function collectKpiDataFromForm() {
+            var areas = [];
+            var currentArea = null;
+            tbody.querySelectorAll('tr').forEach(function(rowEl) {
+                var areaInput = rowEl.querySelector('input[name*="[key_result_area]"]');
+                if (areaInput) {
+                    currentArea = { key_result_area: areaInput.value, indicators: [] };
+                    areas.push(currentArea);
+                }
+                var kpiInput = rowEl.querySelector('input[name*="[kpi]"]');
+                if (!kpiInput || !currentArea) return;
+                currentArea.indicators.push({
+                    kpi: kpiInput.value || '',
+                    weight: (rowEl.querySelector('input[name*="[weight]"]') || {}).value || '',
+                    target: (rowEl.querySelector('input[name*="[target]"]') || {}).value || '',
+                    target_type: (rowEl.querySelector('select[name*="[target_type]"]') || {}).value || 'text',
+                    actual: (rowEl.querySelector('input[name*="[actual]"]') || {}).value || '',
+                    score: (rowEl.querySelector('input[name*="[score]"]') || {}).value || '',
+                    final_score: (rowEl.querySelector('input[name*="[final_score]"]') || {}).value || ''
+                });
+            });
+            return areas;
+        }
+
+        function removeIndicatorRow(rowEl) {
+            var areaIdx = parseInt(rowEl.dataset.areaIdx, 10);
+            var indIdx = parseInt(rowEl.dataset.indIdx, 10);
+            var areas = collectKpiDataFromForm();
+            if (!areas[areaIdx]) return;
+            areas[areaIdx].indicators.splice(indIdx, 1);
+            if (areas[areaIdx].indicators.length === 0) areas.splice(areaIdx, 1); // drop the area if it's now empty
+            renderTable(areas);
+        }
+
+        function addIndicatorRow(rowEl) {
+            var areaIdx = parseInt(rowEl.dataset.areaIdx, 10);
+            var areas = collectKpiDataFromForm();
+            if (!areas[areaIdx]) return;
+            areas[areaIdx].indicators.push({ kpi: '', weight: '', target: '' });
+            renderTable(areas);
         }
 
         function renderTable(kpiData) {
@@ -498,7 +734,7 @@
         }
 
         window.addResultArea = function() {
-            addAreaToTable({ no: areaCounter + 1, key_result_area: '', indicators: [{ kpi: '', weight: '', target: '' }, { kpi: '', weight: '', target: '' }] });
+            addAreaToTable({ no: areaCounter + 1, key_result_area: '', indicators: [{ kpi: '', weight: '', target: '' }] });
             updateWeightTotal();
         };
 
@@ -570,20 +806,82 @@
                 .catch(function() { renderTable([]); section.style.display = 'block'; placeholder.style.display = 'none'; });
         }
 
-        divSelect.addEventListener('change', function() {
-            var divId = parseInt(this.value);
+        // Pulled out of the divSelect 'change' listener so loadTemplate() (Edit) can
+        // rebuild the Sub-Division options directly, in order, without dispatching a
+        // fake 'change' event — dispatching one used to also fire loadKpiData() with
+        // the Sub-Division/Position not set yet, kicking off a throwaway fetch that
+        // could occasionally resolve AFTER the real one and clobber it with the wrong
+        // (or default) KPI data — a race that was invisible on a fast local server but
+        // showed up on production's less predictable network timing.
+        function renderSubDivisionsForSelection() {
+            var divId = parseInt(divSelect.value);
             subSelect.innerHTML = '<option value="">Select sub-division</option>';
-            if (!divId) { renderPositionsForSelection(); loadKpiData(); return; }
+            if (!divId) return;
             subDivisions.forEach(function(sd) {
                 if (parseInt(sd.division_id) === divId) {
                     var opt = document.createElement('option'); opt.value = sd.id; opt.textContent = sd.name; subSelect.appendChild(opt);
                 }
             });
+        }
+
+        divSelect.addEventListener('change', function() {
+            renderSubDivisionsForSelection();
             renderPositionsForSelection();
             loadKpiData();
         });
         subSelect.addEventListener('change', function() { renderPositionsForSelection(); loadKpiData(); });
         posSelect.addEventListener('change', loadKpiData);
+
+        // ---- "By Position" vs "By Person" mode toggle. Switching clears whatever
+        // the other mode had selected, so Save always unambiguously targets one
+        // scope or the other (never both a Division/Sub/Position AND an employee_id
+        // at the same time). ----
+        window.switchKpiMode = function(mode) {
+            isDuplicating = false;
+            var toPosition = mode === 'position';
+            kpiModePositionFields.style.display = toPosition ? '' : 'none';
+            kpiModePersonFields.style.display = toPosition ? 'none' : '';
+            kpiModePositionBtn.style.background = toPosition ? '#287854' : '#f3f4f6';
+            kpiModePositionBtn.style.color = toPosition ? '#fff' : '#374151';
+            kpiModePersonBtn.style.background = toPosition ? '#f3f4f6' : '#287854';
+            kpiModePersonBtn.style.color = toPosition ? '#374151' : '#fff';
+
+            if (toPosition) {
+                employeeSelect.value = ''; formEmployee.value = '';
+            } else {
+                divSelect.value = '';
+                subSelect.innerHTML = '<option value="">Select sub-division</option>';
+                posSelect.innerHTML = '<option value="">Select position</option>';
+                formDiv.value = ''; formSubDiv.value = ''; formPos.value = '';
+            }
+            section.style.display = 'none';
+            placeholder.style.display = 'block';
+        };
+
+        // "By Person" counterpart to loadKpiData() above — fetches via
+        // getKpiTemplateForEmployee(), which returns either their existing
+        // personal KPI or a copy of their current position KPI as a starting
+        // point (see that method's docblock). is_personal in the response tells
+        // us which, purely for the title text below.
+        function loadKpiDataForEmployee() {
+            var employeeId = employeeSelect.value;
+            if (!employeeId) { section.style.display = 'none'; placeholder.style.display = 'block'; return; }
+            formEmployee.value = employeeId;
+
+            var empName = employeeSelect.options[employeeSelect.selectedIndex].text;
+            title.textContent = 'Template : Personal KPI for ' + empName + '...';
+
+            fetch('/admin/kpi-jd/kpi-template-employee/' + employeeId)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    title.textContent = 'Template : Personal KPI for ' + empName
+                        + (data.is_personal ? '' : ' (starting from their current position KPI)');
+                    renderTable(data.kpi_data);
+                    section.style.display = 'block'; placeholder.style.display = 'none';
+                })
+                .catch(function() { renderTable([]); section.style.display = 'block'; placeholder.style.display = 'none'; });
+        }
+        employeeSelect.addEventListener('change', loadKpiDataForEmployee);
 
         // ---- Preview: read whatever is currently typed in the form (nothing is saved) and
         // render it as motivational "Goals & KPI" cards, matching the visual language already
@@ -726,13 +1024,34 @@
 
         window.loadTemplate = function(divId, subDivId, posId) {
             isDuplicating = false; // Edit always loads/overwrites from the real saved template
-            divSelect.value = divId; divSelect.dispatchEvent(new Event('change'));
-            setTimeout(function() {
-                if (subDivId) subSelect.value = subDivId;
-                renderPositionsForSelection();
-                if (posId) posSelect.value = posId;
-                loadKpiData();
-            }, 200);
+            switchKpiMode('position');
+            // Set Division → Sub-Division → Position in order and only fetch once
+            // everything is in its final state — see renderSubDivisionsForSelection()
+            // above for why this no longer dispatches a fake 'change' event.
+            divSelect.value = divId;
+            renderSubDivisionsForSelection();
+            if (subDivId) subSelect.value = subDivId;
+            renderPositionsForSelection();
+            if (posId) posSelect.value = posId;
+            loadKpiData();
+        };
+
+        // Edit action on a *personal* row in the Saved Templates list below.
+        window.loadPersonalTemplate = function(employeeId) {
+            isDuplicating = false;
+            switchKpiMode('person');
+            employeeSelect.value = employeeId;
+            loadKpiDataForEmployee();
+        };
+
+        // "Create KPI" from the Employees Needing a KPI list below — same as Edit
+        // (no template exists yet for them, so the fetch naturally comes back with
+        // the blank starter template), just also scrolls the builder into view since
+        // that list can be scrolled well past it.
+        window.createKpiForEmployee = function(divId, subDivId, posId) {
+            loadTemplate(divId, subDivId, posId);
+            var card = document.getElementById('kpi_template_card');
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
         };
 
         // ---- Per-row "⋮" actions menu (Edit / Duplicate / Delete), replacing the

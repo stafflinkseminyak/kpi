@@ -168,7 +168,74 @@ public function index(Request $request)
         $subDivisions = SubDivision::orderBy('name')->get();
         $positions = Position::orderBy('name')->get();
 
-        return view('admin.kpi.kpi-list', compact('records', 'isSuperAdmin', 'divisions', 'subDivisions', 'positions'));
+        // ==================== EMPLOYEES NEEDING A KPI ====================
+        // Everyone with a contract but no KPI template resolving to them yet — via
+        // the exact same Division/Sub-Division/Position resolution KpiTemplate::
+        // forEmployee() uses for the Performance page and Employee Profile, so
+        // this list can never disagree with what those pages consider "covered".
+        // A to-do list for admins: click through to pre-fill the builder above.
+        $divisionsById = $divisions->keyBy('id');
+        $subDivisionsById = $subDivisions->keyBy('id');
+        $positionsById = $positions->keyBy('id');
+
+        // Only exclude people who've actually left — someone still "joining soon"
+        // (contract in, onboarding/account not finished yet) still has a real
+        // contracted position and needs a KPI just as much as anyone already
+        // active. Login/account status has nothing to do with it.
+        $nonTerminatedEmployees = \App\Models\Employee::with(['contract', 'division'])
+            ->where('status', '!=', 'terminated')
+            ->orderBy('first_name')
+            ->get();
+
+        // Employee.contract_id has to actually be set for someone to be checked at
+        // all — an Employee record that predates this link (or was never
+        // connected to its Contract) is invisible to this whole feature, same as
+        // it already is to assignedEmployees() on the Saved Templates list. Listed
+        // by name below (not just counted) so it's something an admin can actually
+        // go fix, not just a mystery gap.
+        $employeesWithContract = $nonTerminatedEmployees->whereNotNull('contract_id');
+        $employeesWithoutContract = $nonTerminatedEmployees->whereNull('contract_id')->values();
+        $employeesWithoutContractCount = $employeesWithoutContract->count();
+
+        $employeesNeedingKpi = $employeesWithContract
+            // A template that resolves but has zero KPI areas (e.g. an old dummy/
+            // placeholder record someone started and never filled in) doesn't
+            // actually give this person a KPI — treat it the same as no template
+            // at all, instead of silently marking them "covered".
+            ->filter(function ($e) {
+                $tpl = \App\Models\KpiTemplate::forEmployee($e);
+                return $tpl === null || empty($tpl->areas());
+            })
+            ->map(function ($e) use ($divisionsById, $subDivisionsById, $positionsById) {
+                $formData = is_array($e->contract?->form_data) ? $e->contract->form_data : [];
+                $divisionId = $e->contract?->division_id;
+                $subDivisionId = $formData['sub_division_id'] ?? null;
+                $positionId = $formData['position_id'] ?? null;
+
+                return [
+                    'employee' => $e,
+                    'division_id' => $divisionId,
+                    'sub_division_id' => $subDivisionId,
+                    'position_id' => $positionId,
+                    'division_name' => $divisionId ? optional($divisionsById->get($divisionId))->name : null,
+                    'sub_division_name' => $subDivisionId ? optional($subDivisionsById->get($subDivisionId))->name : null,
+                    'position_name' => $positionId ? optional($positionsById->get($positionId))->name : null,
+                ];
+            })
+            ->values();
+
+        $employeesAlreadyCoveredCount = $employeesWithContract->count() - $employeesNeedingKpi->count();
+
+        // For the "By Person" mode's employee picker — anyone selectable there
+        // (whether they already have a position KPI or not; that's the whole
+        // point, e.g. promoting someone who's had one for years).
+        $employeesForKpiPicker = $employeesWithContract->values();
+
+        return view('admin.kpi.kpi-list', compact(
+            'records', 'isSuperAdmin', 'divisions', 'subDivisions', 'positions', 'employeesNeedingKpi',
+            'employeesWithoutContract', 'employeesWithoutContractCount', 'employeesAlreadyCoveredCount',
+            'employeesForKpiPicker'
+        ));
     }
 
     public function jdList(Request $request)
@@ -200,6 +267,43 @@ public function index(Request $request)
         // division+sub-division, then division-only) — see KpiTemplate::match().
         $template = KpiTemplate::match($divisionId, $subDivisionId, $positionId);
 
+        return $this->respondWithKpiTemplate($template);
+    }
+
+    /**
+     * "By Person" counterpart to getKpiTemplate() above — used when the builder
+     * is scoped to one specific employee instead of a Division/Sub-Division/
+     * Position (e.g. an in-house promotion that needs its own KPIs). Reuses
+     * KpiTemplate::forEmployee(), which already checks for a personal override
+     * first and falls back to their resolved position-level template — so a
+     * brand-new personal KPI naturally starts as a copy of whatever they
+     * currently have, exactly like "Duplicate" does for position templates.
+     */
+    public function getKpiTemplateForEmployee($employeeId)
+    {
+        $this->ensureSuperAdmin();
+
+        $employee = \App\Models\Employee::findOrFail($employeeId);
+        $template = KpiTemplate::forEmployee($employee);
+        $isPersonal = $template && (int) $template->employee_id === (int) $employee->id;
+
+        return $this->respondWithKpiTemplate($template, [
+            'employee_id' => $employee->id,
+            'employee_name' => $employee->full_name,
+            // Tells the builder whether Save will update an existing personal
+            // KPI or create a brand-new one (starting from the copy above).
+            'is_personal' => $isPersonal,
+        ]);
+    }
+
+    /**
+     * Shared by getKpiTemplate() (Division/Sub-Division/Position) and
+     * getKpiTemplateForEmployee() (one specific person) — everything past
+     * "which template did we resolve" (data-shape normalization, live YTD
+     * Dashboard numbers, JSON response) is identical either way.
+     */
+    private function respondWithKpiTemplate(?KpiTemplate $template, array $extra = [])
+    {
         $kpiData = $template ? $template->kpi_data : KpiTemplate::defaultKpiData();
 
         // Ensure data is in new array format (not old associative format)
@@ -296,11 +400,11 @@ public function index(Request $request)
             unset($card);
         }
 
-        return response()->json([
+        return response()->json(array_merge([
             'ok' => true,
             'kpi_data' => $kpiData,
             'exists' => (bool) $template,
-        ]);
+        ], $extra));
     }
 
     public function saveKpiTemplate(Request $request)
@@ -309,23 +413,36 @@ public function index(Request $request)
         abort_unless(in_array(request()->user()?->role, ['super_admin', 'admin'], true), 403);
 
         $validated = $request->validate([
-            'division_id' => 'required|integer|exists:divisions,id',
+            'employee_id' => 'nullable|integer|exists:employees,id',
+            'division_id' => 'required_without:employee_id|nullable|integer|exists:divisions,id',
             'sub_division_id' => 'nullable|integer|exists:sub_divisions,id',
             'position_id' => 'nullable|integer|exists:positions,id',
             'kpi_data' => 'required|array',
         ]);
 
         $kpiData = $validated['kpi_data'];
+        $employeeId = $validated['employee_id'] ?? null;
+
+        // A personal KPI is identified purely by employee_id — never by Division/
+        // Sub-Division/Position, so saving one can never overwrite (or get
+        // confused with) the shared position template it may have started as a
+        // copy of. Division/Sub-Division/Position are still stored alongside it,
+        // filled in from the employee's contract, purely so the Saved Templates
+        // list can show what position this override is for.
+        $lookupKeys = $employeeId
+            ? ['employee_id' => $employeeId]
+            : [
+                'division_id' => $validated['division_id'],
+                'sub_division_id' => $validated['sub_division_id'] ?: null,
+                'position_id' => $validated['position_id'] ?: null,
+            ];
 
         // The KRA/indicator table form has no fields for `ytd_dashboard` at all, so a
         // straight overwrite here would silently wipe out any YTD Dashboard cards an
         // existing template already has. Preserve them until YTD Dashboard gets its
         // own proper editor (it's a separate, mostly-static department scorecard, not
         // part of this per-position KRA table).
-        $existing = KpiTemplate::where('division_id', $validated['division_id'])
-            ->where('sub_division_id', $validated['sub_division_id'] ?: null)
-            ->where('position_id', $validated['position_id'] ?: null)
-            ->first();
+        $existing = KpiTemplate::where($lookupKeys)->first();
         if ($existing && !isset($kpiData['ytd_dashboard'])) {
             $existingData = $existing->kpi_data ?? [];
             if (is_array($existingData) && isset($existingData['ytd_dashboard'])) {
@@ -333,20 +450,27 @@ public function index(Request $request)
             }
         }
 
-        $template = KpiTemplate::updateOrCreate(
-            [
-                'division_id' => $validated['division_id'],
-                'sub_division_id' => $validated['sub_division_id'] ?: null,
-                'position_id' => $validated['position_id'] ?: null,
-            ],
-            [
-                'kpi_data' => $kpiData,
-                'created_by' => request()->user()?->id,
-            ]
-        );
+        $attributes = [
+            'kpi_data' => $kpiData,
+            'created_by' => request()->user()?->id,
+        ];
 
-        return redirect()->route('admin.kpi-jd.kpi-list')
-            ->with('success', 'KPI template saved for this division/sub-division.');
+        if ($employeeId) {
+            $employee = \App\Models\Employee::find($employeeId);
+            $formData = is_array($employee?->contract?->form_data) ? $employee->contract->form_data : [];
+            // division_id is a required column — fall back to the Employee's own
+            // division_id in the unlikely case their contract link is missing it.
+            $attributes['division_id'] = $employee?->contract?->division_id ?? $employee?->division_id;
+            $attributes['sub_division_id'] = $formData['sub_division_id'] ?? null;
+            $attributes['position_id'] = $formData['position_id'] ?? null;
+        }
+
+        $template = KpiTemplate::updateOrCreate($lookupKeys, $attributes);
+
+        return redirect()->route('admin.kpi-jd.kpi-list')->with(
+            'success',
+            $employeeId ? 'Personal KPI saved for this employee.' : 'KPI template saved for this division/sub-division.'
+        );
     }
 
     public function destroyKpiTemplate(KpiTemplate $template)
