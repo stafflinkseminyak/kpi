@@ -74,17 +74,19 @@ class KpiTemplate extends Model
     {
         return \App\Models\Employee::whereHas('contract', function ($q) {
             $q->where('division_id', $this->division_id);
+            // Laravel's `column->key` JSON path syntax compiles to the right
+            // JSON_EXTRACT (+ unquoting) SQL per database driver on its own —
+            // portable across MySQL (production) and SQLite (local testing),
+            // unlike the raw MySQL-only SQL this used to run. Compared as
+            // strings on both sides since the value inside form_data was
+            // written from an HTTP form field (so it's a JSON string, e.g.
+            // "5"), not a JSON number — SQLite in particular won't treat
+            // that as equal to a bound PHP int.
             if ($this->sub_division_id) {
-                $q->whereRaw(
-                    "CAST(JSON_UNQUOTE(JSON_EXTRACT(form_data, '$.sub_division_id')) AS UNSIGNED) = ?",
-                    [$this->sub_division_id]
-                );
+                $q->where('form_data->sub_division_id', (string) $this->sub_division_id);
             }
             if ($this->position_id) {
-                $q->whereRaw(
-                    "CAST(JSON_UNQUOTE(JSON_EXTRACT(form_data, '$.position_id')) AS UNSIGNED) = ?",
-                    [$this->position_id]
-                );
+                $q->where('form_data->position_id', (string) $this->position_id);
             }
         })->orderBy('first_name')->get();
     }
