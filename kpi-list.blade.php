@@ -30,8 +30,10 @@
             <div class="p-4 text-sm text-green-800 bg-green-100 border border-green-200 rounded-lg">{{ session('success') }}</div>
         @endif
 
-        {{-- KPI Template Box --}}
-        <section class="bg-white rounded-lg shadow border border-gray-100">
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+        {{-- KPI Template Box — sticky so it stays in view while the Saved
+             Templates list next to it grows long and gets scrolled through. --}}
+        <section class="bg-white rounded-lg shadow border border-gray-100 xl:sticky xl:top-6">
             <div class="p-6 border-b">
                 <h3 class="text-lg font-semibold text-gray-900">KPI Template</h3>
                 <p class="text-sm text-gray-500 mt-1">Set KPI targets for each division, sub-division, and position.</p>
@@ -71,7 +73,9 @@
             </div>
         </section>
 
-        {{-- Saved Templates — full page width so Actions never needs a horizontal scroll --}}
+        {{-- Saved Templates — Actions is a single "more" menu (see below) so this
+             column stays narrow enough to sit side-by-side without needing a
+             horizontal scroll for the buttons. --}}
         <section class="bg-white rounded-lg shadow border border-gray-100">
             <div class="p-6 border-b">
                 <h3 class="text-lg font-semibold text-gray-900">Saved KPI Templates</h3>
@@ -108,30 +112,30 @@
                                     </span>
                                 @endif
                             </td>
-                            <td class="px-4 py-4 text-right">
-                                <div class="inline-flex flex-wrap items-center justify-end gap-1.5">
-                                    <button type="button" onclick="loadTemplate({{ $tpl->division_id }}, {{ $tpl->sub_division_id ?? 'null' }}, {{ $tpl->position_id ?? 'null' }})"
-                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white rounded transition"
-                                        style="background-color:#6d28d9 !important; color:white !important;">Edit</button>
-                                    <button type="button" onclick='duplicateTemplate(@json($tpl->kpi_data))'
+                            <td class="px-4 py-4 text-right relative">
+                                @php
+                                    $warnLabel = $tpl->division?->name . ' — ' . ($tpl->subDivision?->name ?? 'All') . ($tpl->position ? ' — ' . $tpl->position->name : '');
+                                    $warnAssigned = $assigned->isNotEmpty()
+                                        ? 'This is currently linked to ' . $assigned->count() . ' ' . \Illuminate\Support\Str::plural('employee', $assigned->count()) . ' (' . $assigned->pluck('full_name')->implode(', ') . ') — deleting it removes their KPI/progress too.'
+                                        : '';
+                                @endphp
+                                <button type="button" onclick="toggleActionsMenu(event, {{ $tpl->id }})" title="Actions"
+                                    class="inline-flex items-center justify-center w-8 h-8 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+                                </button>
+                                <div id="actions-menu-{{ $tpl->id }}" class="actions-menu" style="display:none;position:fixed;z-index:1000;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:150px;overflow:hidden;">
+                                    <button type="button" onclick="loadTemplate({{ $tpl->division_id }}, {{ $tpl->sub_division_id ?? 'null' }}, {{ $tpl->position_id ?? 'null' }}); closeAllActionMenus();"
+                                        class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">✏️ Edit</button>
+                                    <button type="button" onclick='duplicateTemplate(@json($tpl->kpi_data)); closeAllActionMenus();'
                                         title="Copy this template's KPI table into a new Division/Sub-Division/Position"
-                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white rounded transition"
-                                        style="background-color:#0891b2 !important; color:white !important;">Duplicate</button>
-                                    <form method="POST" action="{{ route('admin.kpi-jd.kpi-template.destroy', $tpl->id) }}" style="display:inline;"
-                                        @php
-                                            $warnLabel = $tpl->division?->name . ' — ' . ($tpl->subDivision?->name ?? 'All') . ($tpl->position ? ' — ' . $tpl->position->name : '');
-                                            $warnAssigned = $assigned->isNotEmpty()
-                                                ? " This is currently linked to {$assigned->count()} " . \Illuminate\Support\Str::plural('employee', $assigned->count()) . " ({$assigned->pluck('full_name')->implode(', ')}) — deleting it removes their KPI/progress too."
-                                                : '';
-                                        @endphp
-                                        onsubmit="return confirm('Delete the KPI template for {{ addslashes($warnLabel) }}?{{ addslashes($warnAssigned) }}\n\nThis cannot be undone.');">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                            class="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white rounded transition"
-                                            style="background-color:#dc2626 !important; color:white !important;">Delete</button>
-                                    </form>
+                                        class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">📋 Duplicate</button>
+                                    <button type="button" onclick='openDeleteConfirm({{ $tpl->id }}, @json($warnLabel), @json($warnAssigned))'
+                                        class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition">🗑️ Delete</button>
                                 </div>
+                                <form method="POST" action="{{ route('admin.kpi-jd.kpi-template.destroy', $tpl->id) }}" id="delete-form-{{ $tpl->id }}" style="display:none;">
+                                    @csrf
+                                    @method('DELETE')
+                                </form>
                             </td>
                         </tr>
                         @empty
@@ -141,6 +145,27 @@
                 </table>
             </div>
         </section>
+        </div>
+
+        {{-- Custom delete-confirmation modal, styled like the app instead of the
+             browser's native confirm() dialog. --}}
+        <div class="modal-overlay" id="delete_confirm_modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:1000;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this) closeDeleteConfirm()">
+            <div style="background:#fff;border-radius:14px;max-width:440px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:6px;">
+                    <div style="width:38px;height:38px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;">🗑️</div>
+                    <div>
+                        <h3 style="font-size:16px;font-weight:700;color:#1f2937;margin:0;">Delete this KPI template?</h3>
+                        <p id="delete_confirm_label" style="font-size:13px;color:#6b7280;margin:4px 0 0;"></p>
+                    </div>
+                </div>
+                <p id="delete_confirm_warning" style="font-size:13px;color:#92400e;background:#fef3c7;border-radius:8px;padding:10px 12px;margin:14px 0 0;display:none;"></p>
+                <p style="font-size:12.5px;color:#9ca3af;margin:14px 0 0;">This cannot be undone.</p>
+                <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+                    <button type="button" onclick="closeDeleteConfirm()" class="inline-flex items-center px-4 py-2 text-sm font-semibold rounded-lg transition" style="background-color:#f3f4f6 !important;color:#374151 !important;border:none;cursor:pointer;">Cancel</button>
+                    <button type="button" onclick="confirmDeleteProceed()" class="inline-flex items-center px-4 py-2 text-sm font-semibold rounded-lg transition" style="background-color:#dc2626 !important;color:white !important;border:none;cursor:pointer;">Delete</button>
+                </div>
+            </div>
+        </div>
 
         {{-- KPI Table Section (appears after selecting division) --}}
         <div id="kpi_template_section" style="display:none;">
@@ -708,6 +733,65 @@
                 if (posId) posSelect.value = posId;
                 loadKpiData();
             }, 200);
+        };
+
+        // ---- Per-row "⋮" actions menu (Edit / Duplicate / Delete), replacing the
+        // three always-visible buttons so the Saved Templates column stays narrow
+        // enough to sit side-by-side with the KPI Template card. ----
+        window.closeAllActionMenus = function() {
+            document.querySelectorAll('.actions-menu').forEach(function(m) { m.style.display = 'none'; });
+        };
+        // Positioned as `fixed` and placed with getBoundingClientRect() (rather than
+        // `absolute` inside the table), so it escapes the Saved Templates table's
+        // overflow-x-auto wrapper instead of getting clipped for rows near the
+        // bottom of the list — and flips above the button when there's not enough
+        // room below.
+        window.toggleActionsMenu = function(evt, id) {
+            evt.stopPropagation();
+            var menu = document.getElementById('actions-menu-' + id);
+            var wasOpen = menu.style.display === 'block';
+            closeAllActionMenus();
+            if (wasOpen) return;
+
+            var btn = evt.currentTarget.getBoundingClientRect();
+            menu.style.display = 'block'; // measure it before positioning
+            var menuHeight = menu.offsetHeight;
+            var menuWidth = menu.offsetWidth;
+            var spaceBelow = window.innerHeight - btn.bottom;
+            var top = (spaceBelow >= menuHeight + 8) ? btn.bottom + 4 : btn.top - menuHeight - 4;
+            var left = Math.min(btn.right - menuWidth, window.innerWidth - menuWidth - 8);
+
+            menu.style.top = Math.max(8, top) + 'px';
+            menu.style.left = Math.max(8, left) + 'px';
+        };
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.actions-menu') && !e.target.closest('[onclick^="toggleActionsMenu"]')) {
+                closeAllActionMenus();
+            }
+        });
+        window.addEventListener('scroll', closeAllActionMenus, true);
+        window.addEventListener('resize', closeAllActionMenus);
+
+        // ---- Custom delete-confirmation modal (replaces the native confirm()) ----
+        var pendingDeleteTemplateId = null;
+        window.openDeleteConfirm = function(id, label, warning) {
+            pendingDeleteTemplateId = id;
+            document.getElementById('delete_confirm_label').textContent = 'For: ' + label;
+            var warnEl = document.getElementById('delete_confirm_warning');
+            if (warning) { warnEl.textContent = '⚠️ ' + warning; warnEl.style.display = 'block'; }
+            else { warnEl.style.display = 'none'; }
+            document.getElementById('delete_confirm_modal').style.display = 'flex';
+        };
+        window.closeDeleteConfirm = function() {
+            pendingDeleteTemplateId = null;
+            document.getElementById('delete_confirm_modal').style.display = 'none';
+        };
+        window.confirmDeleteProceed = function() {
+            if (pendingDeleteTemplateId) {
+                var form = document.getElementById('delete-form-' + pendingDeleteTemplateId);
+                if (form) form.submit();
+            }
+            closeDeleteConfirm();
         };
     })();
     </script>
