@@ -477,17 +477,40 @@
             updateWeightTotal();
         };
 
+        // ---- Position dropdown: filtered by the selected Division, and further narrowed
+        // by Sub-Division once one is picked (mirrors the same cascading filter already
+        // used on the Contract creation page, for consistency): a position with no
+        // sub_division_id is division-wide and always shown; one with a sub_division_id
+        // only shows once that specific sub-division is selected. ----
+        function renderPositionsForSelection() {
+            var divId = parseInt(divSelect.value);
+            var subDivVal = subSelect.value || '';
+            var previousVal = posSelect.value;
+            posSelect.innerHTML = '<option value="">Select position</option>';
+            if (!divId) return;
+            positions
+                .filter(function(p) { return parseInt(p.division_id) === divId; })
+                .filter(function(p) { return !p.sub_division_id || String(p.sub_division_id) === String(subDivVal); })
+                .forEach(function(p) {
+                    var opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name;
+                    if (String(p.id) === String(previousVal)) opt.selected = true;
+                    posSelect.appendChild(opt);
+                });
+        }
+
         // ---- Duplicate: clone a saved template's KPI table into the form, but force
-        // the admin to pick a *different* Division/Sub-Division before it can be saved,
-        // so the source template is never accidentally overwritten. ----
+        // the admin to pick a *different* Division/Sub-Division/Position before it can
+        // be saved, so the source template is never accidentally overwritten. ----
         window.duplicateTemplate = function(kpiData) {
             isDuplicating = true;
             divSelect.value = '';
             subSelect.innerHTML = '<option value="">Select sub-division</option>';
+            posSelect.innerHTML = '<option value="">Select position</option>';
             formDiv.value = '';
             formSubDiv.value = '';
+            formPos.value = '';
             renderTable(kpiData);
-            title.textContent = 'Template : KPI Table (Duplicated — choose a Division & Sub-Division to save this into)';
+            title.textContent = 'Template : KPI Table (Duplicated - choose a Division, Sub-Division & Position to save this into)';
             section.style.display = 'block';
             placeholder.style.display = 'none';
             section.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -496,24 +519,27 @@
         function loadKpiData() {
             var divId = divSelect.value;
             var subDivId = subSelect.value || '0';
+            var posId = posSelect.value || '0';
             if (!divId) { if (!isDuplicating) { section.style.display = 'none'; placeholder.style.display = 'block'; } return; }
-            formDiv.value = divId; formSubDiv.value = subDivId || '';
+            formDiv.value = divId; formSubDiv.value = subDivId || ''; formPos.value = posId || '';
 
             var divName = divSelect.options[divSelect.selectedIndex].text;
             var subName = subSelect.value ? subSelect.options[subSelect.selectedIndex].text : '';
+            var posName = posSelect.value ? posSelect.options[posSelect.selectedIndex].text : '';
+            var scopeLabel = divName + (subName ? ' - ' + subName : '') + (posName ? ' - ' + posName : '');
 
-            // While duplicating, the table already holds the cloned KPI data \u2014 picking a
-            // target Division/Sub-Division here should only update the title, not fetch
-            // and overwrite it with whatever (or nothing) is already saved there.
+            // While duplicating, the table already holds the cloned KPI data - picking a
+            // target Division/Sub-Division/Position here should only update the title, not
+            // fetch and overwrite it with whatever (or nothing) is already saved there.
             if (isDuplicating) {
-                title.textContent = 'Template : KPI Table (Duplicated \u2014 saving into ' + divName + (subName ? ' \u2014 ' + subName : '') + ')';
+                title.textContent = 'Template : KPI Table (Duplicated - saving into ' + scopeLabel + ')';
                 section.style.display = 'block'; placeholder.style.display = 'none';
                 return;
             }
 
-            title.textContent = 'Template : KPI Table for ' + divName + (subName ? ' \u2014 ' + subName : '');
+            title.textContent = 'Template : KPI Table for ' + scopeLabel;
 
-            fetch('/admin/kpi-jd/kpi-template/' + divId + '/' + subDivId)
+            fetch('/admin/kpi-jd/kpi-template/' + divId + '/' + subDivId + '/' + posId)
                 .then(function(r) { return r.json(); })
                 .then(function(data) { renderTable(data.kpi_data); section.style.display = 'block'; placeholder.style.display = 'none'; })
                 .catch(function() { renderTable([]); section.style.display = 'block'; placeholder.style.display = 'none'; });
@@ -522,15 +548,17 @@
         divSelect.addEventListener('change', function() {
             var divId = parseInt(this.value);
             subSelect.innerHTML = '<option value="">Select sub-division</option>';
-            if (!divId) { loadKpiData(); return; }
+            if (!divId) { renderPositionsForSelection(); loadKpiData(); return; }
             subDivisions.forEach(function(sd) {
                 if (parseInt(sd.division_id) === divId) {
                     var opt = document.createElement('option'); opt.value = sd.id; opt.textContent = sd.name; subSelect.appendChild(opt);
                 }
             });
+            renderPositionsForSelection();
             loadKpiData();
         });
-        subSelect.addEventListener('change', loadKpiData);
+        subSelect.addEventListener('change', function() { renderPositionsForSelection(); loadKpiData(); });
+        posSelect.addEventListener('change', loadKpiData);
 
         // ---- Preview: read whatever is currently typed in the form (nothing is saved) and
         // render it as motivational "Goals & KPI" cards, matching the visual language already
@@ -671,10 +699,15 @@
             document.getElementById('kpi_preview_modal').style.display = 'none';
         };
 
-        window.loadTemplate = function(divId, subDivId) {
+        window.loadTemplate = function(divId, subDivId, posId) {
             isDuplicating = false; // Edit always loads/overwrites from the real saved template
             divSelect.value = divId; divSelect.dispatchEvent(new Event('change'));
-            setTimeout(function() { if (subDivId) subSelect.value = subDivId; loadKpiData(); }, 200);
+            setTimeout(function() {
+                if (subDivId) subSelect.value = subDivId;
+                renderPositionsForSelection();
+                if (posId) posSelect.value = posId;
+                loadKpiData();
+            }, 200);
         };
     })();
     </script>
