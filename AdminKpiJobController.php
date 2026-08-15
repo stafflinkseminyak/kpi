@@ -182,8 +182,17 @@ public function index(Request $request)
         // (contract in, onboarding/account not finished yet) still has a real
         // contracted position and needs a KPI just as much as anyone already
         // active. Login/account status has nothing to do with it.
+        //
+        // NOT `where('status', '!=', 'terminated')` — in SQL, NULL != 'terminated'
+        // evaluates to NULL, not true, so a plain != silently drops every row
+        // whose status is blank/unset instead of including them. That made
+        // employees with no status set invisible to this whole feature: not in
+        // "needs a KPI", not in "already covered", not even in the "not linked to
+        // a Contract" list below, since they never reached that split at all.
         $nonTerminatedEmployees = \App\Models\Employee::with(['contract', 'division'])
-            ->where('status', '!=', 'terminated')
+            ->where(function ($q) {
+                $q->whereNull('status')->orWhere('status', '!=', 'terminated');
+            })
             ->orderBy('first_name')
             ->get();
 
