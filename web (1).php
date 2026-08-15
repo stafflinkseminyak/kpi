@@ -331,6 +331,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/contracts/{contract}/download-word', [AdminContractController::class, 'regenerateWord'])->name('contracts.download-word');
         Route::delete('/contracts/{contract}', [AdminContractController::class, 'destroy'])->name('contracts.destroy');
         Route::post('/contracts/{contract}/approve', [AdminContractController::class, 'approve'])->name('contracts.approve');
+        // One-time cleanup: links every already-approved Contract that has no
+        // Employee yet to one (see AdminContractController::backfillEmployeesFromContracts
+        // docblock). Safe to visit more than once.
+        Route::get('/contracts/backfill-employees', [AdminContractController::class, 'backfillEmployeesFromContracts'])->name('contracts.backfill-employees');
         Route::post('/contracts/{contract}/reject', [AdminContractController::class, 'reject'])->name('contracts.reject');
         // KPI & Job Description
         Route::get('/kpi-jd', [AdminKpiJobController::class, 'index'])->name('kpi-jd.index');
