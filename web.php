@@ -335,6 +335,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
         // Employee yet to one (see AdminContractController::backfillEmployeesFromContracts
         // docblock). Safe to visit more than once.
         Route::get('/contracts/backfill-employees', [AdminContractController::class, 'backfillEmployeesFromContracts'])->name('contracts.backfill-employees');
+        // Read-only audit: lists any Employee names that now have more than one
+        // profile (likely duplicates from before the full-name matching fix).
+        Route::get('/contracts/duplicate-employees', [AdminContractController::class, 'duplicateEmployeesReport'])->name('contracts.duplicate-employees');
         Route::post('/contracts/{contract}/reject', [AdminContractController::class, 'reject'])->name('contracts.reject');
         // KPI & Job Description
         Route::get('/kpi-jd', [AdminKpiJobController::class, 'index'])->name('kpi-jd.index');
