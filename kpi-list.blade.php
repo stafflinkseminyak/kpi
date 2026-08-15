@@ -29,6 +29,9 @@
         @if(session('success'))
             <div class="p-4 text-sm text-green-800 bg-green-100 border border-green-200 rounded-lg">{{ session('success') }}</div>
         @endif
+        @if(session('error'))
+            <div class="p-4 text-sm text-red-800 bg-red-100 border border-red-200 rounded-lg">{{ session('error') }}</div>
+        @endif
 
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {{-- KPI Template Box — sticky so it stays in view while the Saved
