@@ -622,7 +622,17 @@
                         });
 
                         wrap.appendChild(typeSelect); wrap.appendChild(targetInput);
-                        td.appendChild(wrap); tr.appendChild(td);
+
+                        // English translation — optional; shown as an italic sub-line
+                        // under the Target on the generated KPI acknowledgement document.
+                        var targetEnInput = document.createElement('input'); targetEnInput.type = 'text';
+                        targetEnInput.name = 'kpi_data[' + areaIdx + '][indicators][' + indIdx + '][target_en]';
+                        targetEnInput.value = ind.target_en || ''; targetEnInput.placeholder = 'English (optional)';
+                        if (targetEnInput.value) targetEnInput.title = targetEnInput.value;
+                        targetEnInput.addEventListener('input', function() { targetEnInput.title = targetEnInput.value; });
+                        targetEnInput.style.cssText = 'width:100%;margin-top:3px;border:1px solid #e5e7eb;border-radius:4px;padding:3px 6px;font-size:11px;font-style:italic;color:#6b7280;text-align:center;';
+
+                        td.appendChild(wrap); td.appendChild(targetEnInput); tr.appendChild(td);
                         return;
                     }
 
@@ -649,7 +659,17 @@
                         delBtn.addEventListener('mouseleave', function() { delBtn.style.color = '#9ca3af'; delBtn.style.background = 'none'; });
                         delBtn.addEventListener('click', function() { removeIndicatorRow(tr); });
                         kpiWrap.appendChild(input); kpiWrap.appendChild(delBtn);
-                        td.appendChild(kpiWrap); tr.appendChild(td);
+
+                        // English translation — optional; shown as an italic sub-line
+                        // under the KPI name on the generated KPI acknowledgement document.
+                        var kpiEnInput = document.createElement('input'); kpiEnInput.type = 'text';
+                        kpiEnInput.name = 'kpi_data[' + areaIdx + '][indicators][' + indIdx + '][kpi_en]';
+                        kpiEnInput.value = ind.kpi_en || ''; kpiEnInput.placeholder = 'English translation (optional)';
+                        if (kpiEnInput.value) kpiEnInput.title = kpiEnInput.value;
+                        kpiEnInput.addEventListener('input', function() { kpiEnInput.title = kpiEnInput.value; });
+                        kpiEnInput.style.cssText = 'width:100%;margin-top:3px;border:1px solid #e5e7eb;border-radius:4px;padding:3px 6px;font-size:11px;font-style:italic;color:#6b7280;';
+
+                        td.appendChild(kpiWrap); td.appendChild(kpiEnInput); tr.appendChild(td);
                         return;
                     }
 
@@ -677,8 +697,10 @@
                 if (!kpiInput || !currentArea) return;
                 currentArea.indicators.push({
                     kpi: kpiInput.value || '',
+                    kpi_en: (rowEl.querySelector('input[name*="[kpi_en]"]') || {}).value || '',
                     weight: (rowEl.querySelector('input[name*="[weight]"]') || {}).value || '',
                     target: (rowEl.querySelector('input[name*="[target]"]') || {}).value || '',
+                    target_en: (rowEl.querySelector('input[name*="[target_en]"]') || {}).value || '',
                     target_type: (rowEl.querySelector('select[name*="[target_type]"]') || {}).value || 'text',
                     actual: (rowEl.querySelector('input[name*="[actual]"]') || {}).value || '',
                     score: (rowEl.querySelector('input[name*="[score]"]') || {}).value || '',

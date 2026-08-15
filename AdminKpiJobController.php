@@ -518,7 +518,9 @@ public function index(Request $request)
                 }
                 $rows[] = [
                     'kpi' => $ind['kpi'] ?? '',
+                    'kpi_en' => $ind['kpi_en'] ?? '',
                     'target' => $ind['target'] ?? '',
+                    'target_en' => $ind['target_en'] ?? '',
                     'weight' => $ind['weight'] ?? '',
                 ];
             }
@@ -561,7 +563,9 @@ public function index(Request $request)
             $totalWeight += $weightNum;
             $processor->setValue("kpi_no#{$n}", (string) $n);
             $processor->setValue("kpi_name#{$n}", self::escapeForWordXml((string) $row['kpi']));
+            $processor->setValue("kpi_name_en#{$n}", self::escapeForWordXml((string) ($row['kpi_en'] ?? '')));
             $processor->setValue("kpi_target#{$n}", self::escapeForWordXml((string) $row['target']));
+            $processor->setValue("kpi_target_en#{$n}", self::escapeForWordXml((string) ($row['target_en'] ?? '')));
             $processor->setValue("kpi_weight#{$n}", rtrim(rtrim(number_format($weightNum, 2), '0'), '.'));
         }
         $processor->setValue('total_weight', rtrim(rtrim(number_format($totalWeight, 2), '0'), '.'));
