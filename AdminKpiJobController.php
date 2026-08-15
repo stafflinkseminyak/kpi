@@ -235,10 +235,15 @@ public function index(Request $request)
 
         $employeesAlreadyCoveredCount = $employeesWithContract->count() - $employeesNeedingKpi->count();
 
-        // For the "By Person" mode's employee picker — anyone selectable there
-        // (whether they already have a position KPI or not; that's the whole
-        // point, e.g. promoting someone who's had one for years).
-        $employeesForKpiPicker = $employeesWithContract->values();
+        // For the "By Person" mode's employee picker — everyone non-terminated,
+        // not just those with a linked Contract. "By Person" mode exists
+        // precisely to cover people the Contract-based flow can't reach (e.g.
+        // an employee whose contract predates this system and was made
+        // manually, so there's no Contract record to auto-link at all) — so
+        // restricting it to $employeesWithContract only would defeat that.
+        // saveKpiTemplate() already falls back to the Employee's own
+        // division_id when there's no Contract to read one from.
+        $employeesForKpiPicker = $nonTerminatedEmployees->values();
 
         return view('admin.kpi.kpi-list', compact(
             'records', 'isSuperAdmin', 'divisions', 'subDivisions', 'positions', 'employeesNeedingKpi',
