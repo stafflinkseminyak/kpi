@@ -489,12 +489,15 @@ public function index(Request $request)
 
     /**
      * Generates the "SURAT PERNYATAAN DAN PERSETUJUAN KEY PERFORMANCE
-     * INDICATOR (KPI)" acknowledgement document for one specific employee —
-     * built with PHPWord, reusing the exact same StaffLink letterhead (logo,
-     * gold header/footer banners, tagline, contact block) as
-     * AdminContractController::buildContractWord(), so it matches the
-     * company's other official documents pixel-for-pixel. Wording/layout
-     * matches the format Legal signed off on (see the .docx they supplied).
+     * INDICATOR (KPI)" acknowledgement document for one specific employee.
+     *
+     * This fills Legal's own, already-approved .docx (the one they supplied,
+     * with the header tidied up and fonts unified per Ayu's request) as a
+     * PhpWord TemplateProcessor template — it is NOT rebuilt from scratch, so
+     * every bit of Legal's layout/branding/decoration is reproduced exactly.
+     * The template lives at storage/app/kpi-templates/kpi-acknowledgement-template.docx
+     * and only has plain ${placeholder} merge fields swapped in for the
+     * dynamic bits (doc number, name, position, department, KPI rows, total weight).
      */
     public function generateKpiDocument($employeeId)
     {
@@ -521,248 +524,55 @@ public function index(Request $request)
             }
         }
 
-        return $this->buildKpiWord($employee, $rows);
+        return $this->buildKpiWordFromTemplate($employee, $rows);
     }
 
-    private function buildKpiWord(\App\Models\Employee $employee, array $rows)
+    /**
+     * Escapes text for safe insertion into an OOXML <w:t> run — PhpWord's
+     * TemplateProcessor::setValue() does NOT escape XML special characters
+     * on its own, so free-text employee/KPI data must be escaped here first.
+     */
+    private static function escapeForWordXml(string $value): string
     {
-        // PhpWord doesn't escape & in XML output — same guard buildContractWord() uses.
-        $fullName = str_replace('&', 'and', $employee->full_name);
-        $positionName = str_replace('&', 'and', $employee->position_title ?: '\u{2014}');
-        $divisionName = str_replace('&', 'and', $employee->division?->name ?: ($employee->contract?->division?->name ?? '\u{2014}'));
-        array_walk($rows, function (&$row) {
-            foreach ($row as &$value) {
-                $value = str_replace('&', 'and', (string) $value);
-            }
-        });
+        return htmlspecialchars($value, ENT_QUOTES | ENT_XML1, 'UTF-8');
+    }
 
-        $phpWord = new \PhpOffice\PhpWord\PhpWord();
-        $phpWord->setDefaultFontName('Palatino Linotype');
-        $phpWord->setDefaultFontSize(8);
+    private function buildKpiWordFromTemplate(\App\Models\Employee $employee, array $rows)
+    {
+        $templatePath = storage_path('app/kpi-templates/kpi-acknowledgement-template.docx');
+        abort_unless(file_exists($templatePath), 500, 'KPI acknowledgement template file is missing on the server.');
 
-        $boldStyle = ['bold' => true];
-        $italicStyle = ['italic' => true];
-        $normalStyle = [];
-        $paraJustify = ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::BOTH, 'spaceBefore' => 0, 'spaceAfter' => 60, 'lineHeight' => 1.08];
-        $paraCenter = ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceBefore' => 0, 'spaceAfter' => 60, 'lineHeight' => 1.08];
-        $paraCenterBig = ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceBefore' => 0, 'spaceAfter' => 80, 'lineHeight' => 1.08];
+        $fullName = self::escapeForWordXml($employee->full_name);
+        $positionName = self::escapeForWordXml($employee->position_title ?: '\u{2014}');
+        $divisionName = self::escapeForWordXml($employee->division?->name ?: ($employee->contract?->division?->name ?? '\u{2014}'));
+        $docNumber = self::escapeForWordXml(sprintf('SLS-KPI-%s-%04d', now()->format('Y'), $employee->id));
 
-        // A4 page + margins, header/footer heights — identical to buildContractWord()
-        $section = $phpWord->addSection([
-            'pageSizeW' => 11906, 'pageSizeH' => 16838,
-            'marginTop' => 1950, 'marginBottom' => 1200, 'marginLeft' => 1134, 'marginRight' => 1134,
-            'headerHeight' => 100, 'footerHeight' => 1,
-        ]);
+        $processor = new \PhpOffice\PhpWord\TemplateProcessor($templatePath);
+        $processor->setValue('doc_number', $docNumber);
+        $processor->setValue('employee_name', $fullName);
+        $processor->setValue('position', $positionName);
+        $processor->setValue('department', $divisionName);
 
-        // --- HEADER/FOOTER: the same gold-wave letterhead used on Contracts ---
-        $header = $section->addHeader();
-        $goldHeaderPath = public_path('images/contracts/letterhead-header.png');
-        if (file_exists($goldHeaderPath)) {
-            $header->addImage($goldHeaderPath, [
-                'width' => 595, 'height' => 89, 'positioning' => 'absolute',
-                'posHorizontal' => \PhpOffice\PhpWord\Style\Image::POSITION_HORIZONTAL_CENTER,
-                'posHorizontalRel' => \PhpOffice\PhpWord\Style\Image::POSITION_RELATIVE_TO_PAGE,
-                'posVertical' => \PhpOffice\PhpWord\Style\Image::POSITION_VERTICAL_TOP,
-                'posVerticalRel' => \PhpOffice\PhpWord\Style\Image::POSITION_RELATIVE_TO_PAGE,
-                'wrappingStyle' => 'behind',
-            ]);
-        }
-
-        $footer = $section->addFooter();
-        $footer->addPreserveText('PAGE | {PAGE}', ['size' => 7.5, 'color' => '595959'], ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceAfter' => 0]);
-        $goldFooterPath = public_path('images/contracts/letterhead-footer.png');
-        if (file_exists($goldFooterPath)) {
-            $footer->addImage($goldFooterPath, [
-                'width' => 595, 'height' => 76, 'positioning' => 'absolute',
-                'posHorizontal' => \PhpOffice\PhpWord\Style\Image::POSITION_HORIZONTAL_CENTER,
-                'posHorizontalRel' => \PhpOffice\PhpWord\Style\Image::POSITION_RELATIVE_TO_PAGE,
-                'posVertical' => \PhpOffice\PhpWord\Style\Image::POSITION_VERTICAL_BOTTOM,
-                'posVerticalRel' => \PhpOffice\PhpWord\Style\Image::POSITION_RELATIVE_TO_PAGE,
-                'wrappingStyle' => 'behind',
-            ]);
-        }
-
-        // --- Logo + tagline + contact block (same as Contract's) ---
-        $bodyHeaderTable = $section->addTable(['borderSize' => 0, 'cellMargin' => 0]);
-        $bodyHeaderTable->addRow();
-        $leftCell = $bodyHeaderTable->addCell(4656, ['borderSize' => 0]);
-        $logoPath = public_path('images/logo.png');
-        if (file_exists($logoPath)) {
-            $leftCell->addImage($logoPath, ['width' => 122, 'height' => 78, 'wrappingStyle' => 'inline']);
-        }
-        $leftCell->addText('Making Dreams Possible', ['italic' => true, 'bold' => true, 'size' => 9, 'color' => '1a6b30', 'name' => 'Georgia'], ['spaceAfter' => 0, 'spaceBefore' => 40, 'indentation' => ['left' => 340]]);
-        $leftCell->addText('One Person at a Time', ['italic' => true, 'bold' => true, 'size' => 9, 'color' => '1a6b30', 'name' => 'Georgia'], ['spaceAfter' => 0, 'indentation' => ['left' => 340]]);
-
-        $rightCell = $bodyHeaderTable->addCell(5044, ['borderSize' => 0]);
-        $rightCell->addText('Contact Details and Social Media', ['bold' => true, 'size' => 10, 'color' => '1a6b30', 'name' => 'Georgia'], ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceAfter' => 10, 'spaceBefore' => 0]);
-        $rightCell->addText('M: +62 857-3966-0906', ['size' => 8.5, 'bold' => true, 'color' => '333333'], ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceAfter' => 0]);
-        $rightCell->addText('E: info@stafflink.pro', ['size' => 8.5, 'color' => '5b8fad'], ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceAfter' => 0]);
-        $rightCell->addText('Website : www.stafflink.pro', ['size' => 8.5, 'bold' => true, 'color' => '333333'], ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::CENTER, 'spaceAfter' => 10]);
-
-        $bodyHeaderTable->addRow(1);
-        $greenCell = $bodyHeaderTable->addCell(9700, ['gridSpan' => 2, 'borderBottomSize' => 6, 'borderBottomColor' => '1a6b30']);
-        $greenCell->addText('', ['size' => 1], ['spaceBefore' => 0, 'spaceAfter' => 0, 'lineHeight' => 0.5]);
-
-        // --- Doc number + bilingual title (wording matches Legal's finalized copy) ---
-        $section->addText('No. Dokumen / Document No.: SLS-KPI-' . now()->format('Y') . '-____', ['size' => 8, 'color' => '595959'], $paraJustify);
-
-        $tr = $section->addTextRun($paraCenterBig);
-        $tr->addText('SURAT PERNYATAAN DAN PERSETUJUAN KEY PERFORMANCE INDICATOR (KPI)', ['bold' => true, 'size' => 11]);
-        $tr->addTextBreak();
-        $tr->addText('KPI STATEMENT AND ACKNOWLEDGEMENT FORM', ['bold' => true, 'italic' => true, 'size' => 9]);
-
-        $tr = $section->addTextRun($paraJustify);
-        $tr->addText('Yang bertanda tangan di bawah ini: ', $normalStyle);
-        $tr->addText('The undersigned:', $italicStyle);
-
-        $this->addKpiWordInfoRows($section, [
-            ['Nama / Name', $fullName],
-            ['Jabatan / Position', $positionName],
-            ['Departemen / Department', $divisionName],
-            ['Periode Berlaku / Effective Period', '_____________________ s.d./to _____________________'],
-        ]);
-
-        $tr = $section->addTextRun($paraJustify);
-        $tr->addText('dengan ini menyatakan telah menerima dan memahami Key Performance Indicator (KPI) yang ditetapkan oleh Perusahaan sebagai berikut: ', $normalStyle);
-        $tr->addText('hereby declares to have received and understood the Key Performance Indicators (KPIs) established by the Company as follows:', $italicStyle);
-
-        // --- KPI table: same D9E2F3/F2F2F2 shading Legal's document uses, and
-        // cantSplit on every row so no row can ever break across a page again ---
-        $kpiTable = $section->addTable(['borderSize' => 6, 'borderColor' => '999999', 'cellMargin' => 80]);
-        $kpiTable->addRow(400, ['tblHeader' => true, 'cantSplit' => true]);
-        $kpiTable->addCell(500, ['bgColor' => 'D9E2F3'])->addText('No', $boldStyle, $paraCenter);
-        $kpiTable->addCell(3900, ['bgColor' => 'D9E2F3'])->addText('Key Performance Indicator (KPI)', $boldStyle, $paraCenter);
-        $kpiTable->addCell(3800, ['bgColor' => 'D9E2F3'])->addText('Target', $boldStyle, $paraCenter);
-        $kpiTable->addCell(1500, ['bgColor' => 'D9E2F3'])->addText('Bobot / Weight', $boldStyle, $paraCenter);
-
+        $processor->cloneRow('kpi_no', max(count($rows), 1));
         $totalWeight = 0;
         foreach ($rows as $i => $row) {
-            $kpiTable->addRow(null, ['cantSplit' => true]);
-            $kpiTable->addCell(500)->addText((string) ($i + 1), $normalStyle, $paraCenter);
-            $kpiTable->addCell(3900)->addText($row['kpi'], $normalStyle, ['spaceAfter' => 0]);
-            $kpiTable->addCell(3800)->addText($row['target'], $normalStyle, ['spaceAfter' => 0]);
+            $n = $i + 1;
             $weightNum = (float) preg_replace('/[^\d.\-]/', '', (string) $row['weight']);
             $totalWeight += $weightNum;
-            $kpiTable->addCell(1500)->addText(rtrim(rtrim(number_format($weightNum, 2), '0'), '.') . '%', $normalStyle, $paraCenter);
+            $processor->setValue("kpi_no#{$n}", (string) $n);
+            $processor->setValue("kpi_name#{$n}", self::escapeForWordXml((string) $row['kpi']));
+            $processor->setValue("kpi_target#{$n}", self::escapeForWordXml((string) $row['target']));
+            $processor->setValue("kpi_weight#{$n}", rtrim(rtrim(number_format($weightNum, 2), '0'), '.'));
         }
-        $kpiTable->addRow(null, ['cantSplit' => true]);
-        $totalCell = $kpiTable->addCell(8200, ['gridSpan' => 3, 'bgColor' => 'F2F2F2']);
-        $totalCell->addText('Total Bobot / Total Weight', $boldStyle, ['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::RIGHT, 'spaceAfter' => 0]);
-        $kpiTable->addCell(1500, ['bgColor' => 'F2F2F2'])->addText(rtrim(rtrim(number_format($totalWeight, 2), '0'), '.') . '%', $boldStyle, $paraCenter);
+        $processor->setValue('total_weight', rtrim(rtrim(number_format($totalWeight, 2), '0'), '.'));
 
-        // --- Declaration — exact wording Legal approved ---
-        $section->addText('PERNYATAAN / STATEMENT', $boldStyle, ['spaceBefore' => 200, 'spaceAfter' => 120]);
-
-        $declarations = [
-            ['Saya telah menerima, membaca, dan memahami seluruh Key Performance Indicator (KPI) beserta target dan bobot penilaian sebagaimana tercantum dalam tabel di atas.',
-             'I have received, read, and understood all Key Performance Indicators (KPIs), including the targets and assessment weights as set out in the table above.'],
-            ['Saya menandatangani dokumen ini secara sadar, sukarela, tanpa paksaan dari pihak mana pun, dan dalam keadaan cakap hukum, setelah diberikan kesempatan untuk bertanya dan mendiskusikan KPI tersebut, sesuai dengan syarat sahnya perjanjian sebagaimana diatur dalam Pasal 1320 Kitab Undang-Undang Hukum Perdata (KUHPerdata).',
-             'I sign this document consciously, voluntarily, free from coercion by any party, and with full legal capacity, having been given the opportunity to ask questions and discuss the KPIs, in accordance with the requirements for a valid agreement as stipulated in Article 1320 of the Indonesian Civil Code (KUHPerdata).'],
-            ['Saya menyetujui bahwa KPI di atas digunakan sebagai dasar penilaian kinerja saya selama periode berlaku, dan hasil penilaian tersebut dapat menjadi pertimbangan Perusahaan dalam keputusan kepegawaian sesuai dengan peraturan perundang-undangan yang berlaku, perjanjian kerja, dan/atau peraturan perusahaan.',
-             'I agree that the above KPIs shall serve as the basis for the assessment of my performance during the effective period, and that the results of such assessment may be taken into consideration by the Company in employment-related decisions in accordance with the prevailing laws and regulations, the employment agreement, and/or the company regulations.'],
-        ];
-        foreach ($declarations as $i => $pair) {
-            $tr = $section->addTextRun($paraJustify);
-            $tr->addText(($i + 1) . '. ' . $pair[0] . ' ', $normalStyle);
-            $tr->addText($pair[1], $italicStyle);
-        }
-
-        $tr = $section->addTextRun($paraJustify);
-        $tr->addText('*) Penilaian KPI kehadiran dan ketepatan waktu tidak mengurangi hak cuti, istirahat, dan izin yang dijamin oleh peraturan perundang-undangan; ketidakhadiran berdasarkan hak tersebut tidak diperhitungkan sebagai ketidakhadiran. ', $italicStyle);
-        $tr->addText('*) The assessment of the attendance and punctuality KPI shall not reduce any leave, rest, or permitted-absence entitlements guaranteed by the prevailing laws and regulations; any absence based on such entitlements shall not be counted as an absence.', $italicStyle);
-
-        $declarations2 = [
-            ['Saya berkomitmen untuk berupaya secara maksimal mencapai target yang ditetapkan dan akan segera menginformasikan kepada atasan langsung apabila terdapat kendala yang berpotensi menghambat pencapaian target.',
-             'I am committed to making my best efforts to achieve the targets set and will promptly inform my direct supervisor of any obstacles that may hinder the achievement of such targets.'],
-            ['Saya memahami bahwa KPI ini dapat ditinjau dan disesuaikan oleh Perusahaan dari waktu ke waktu sesuai kebutuhan bisnis, dengan pemberitahuan terlebih dahulu kepada saya.',
-             'I understand that these KPIs may be reviewed and adjusted by the Company from time to time in line with business needs, with prior notice to me.'],
-            ['Pernyataan ini tidak mengurangi hak dan kewajiban para pihak berdasarkan peraturan perundang-undangan di bidang ketenagakerjaan, perjanjian kerja, dan/atau peraturan perusahaan yang berlaku.',
-             'This statement does not reduce the rights and obligations of the parties under the prevailing employment laws and regulations, the employment agreement, and/or the applicable company regulations.'],
-            ['Dokumen ini dibuat dalam Bahasa Indonesia dan Bahasa Inggris sesuai Undang-Undang Nomor 24 Tahun 2009. Apabila terdapat perbedaan penafsiran antara kedua versi, maka versi Bahasa Indonesia yang berlaku.',
-             'This document is executed in Indonesian and English in accordance with Law No. 24 of 2009. In the event of any inconsistency between the two versions, the Indonesian version shall prevail.'],
-        ];
-        foreach ($declarations2 as $i => $pair) {
-            $tr = $section->addTextRun($paraJustify);
-            $tr->addText(($i + 4) . '. ' . $pair[0] . ' ', $normalStyle);
-            $tr->addText($pair[1], $italicStyle);
-        }
-
-        $tr = $section->addTextRun(['alignment' => \PhpOffice\PhpWord\SimpleType\Jc::BOTH, 'spaceBefore' => 120, 'spaceAfter' => 240]);
-        $tr->addText('Demikian pernyataan ini dibuat dengan sebenarnya untuk digunakan sebagaimana mestinya. ', $normalStyle);
-        $tr->addText('This statement is made truthfully to be used as appropriate.', $italicStyle);
-
-        // --- Signature block ---
-        $section->addText('_____________________, _____________________ ' . now()->format('Y'), $normalStyle, ['spaceAfter' => 240]);
-
-        $sigTable = $section->addTable(['borderSize' => 0, 'cellMargin' => 80]);
-        $sigTable->addRow();
-        $cell1 = $sigTable->addCell(4500, ['borderSize' => 0]);
-        $cell1->addText('Disetujui dan diakui oleh,', $boldStyle, $normalStyle);
-        $cell1->addText('Acknowledged and agreed by,', $italicStyle, $normalStyle);
-        $cell1->addTextBreak(4);
-        $cell1->addText('_____________________________', $normalStyle, ['spaceAfter' => 0]);
-        $cell1->addText('Nama / Name : ' . $fullName, $normalStyle, ['spaceAfter' => 0]);
-        $cell1->addText('Jabatan / Position : ' . $positionName, $normalStyle, ['spaceAfter' => 0]);
-        $cell1->addText('Tanggal / Date : _____________________', $normalStyle, ['spaceAfter' => 0]);
-
-        $cell2 = $sigTable->addCell(4500, ['borderSize' => 0]);
-        $cell2->addText('Ditetapkan oleh, untuk dan atas nama Perusahaan,', $boldStyle, $normalStyle);
-        $cell2->addText('Established by, for and on behalf of the Company,', $italicStyle, $normalStyle);
-        $cell2->addTextBreak(4);
-        $cell2->addText('_____________________________', $normalStyle, ['spaceAfter' => 0]);
-        $cell2->addText('Nama / Name : _____________________', $normalStyle, ['spaceAfter' => 0]);
-        $cell2->addText('Jabatan / Position : _____________________', $normalStyle, ['spaceAfter' => 0]);
-        $cell2->addText('Tanggal / Date : _____________________', $normalStyle, ['spaceAfter' => 0]);
-
-        // --- Save + same post-process border fix buildContractWord() applies
-        // (PhpWord's borderSize=0 emits w:val="single" w:sz="0", which Word
-        // still renders as a hairline border unless swapped to w:val="none") ---
-        $filename = \Illuminate\Support\Str::slug('KPI-' . $fullName) . '.docx';
+        $filename = \Illuminate\Support\Str::slug('KPI-' . $employee->full_name) . '.docx';
         $publicPath = public_path('downloads/' . $filename);
-        $objWriter = \PhpOffice\PhpWord\IOFactory::createWriter($phpWord, 'Word2007');
-        $objWriter->save($publicPath);
-
-        $zip = new \ZipArchive();
-        if ($zip->open($publicPath) === true) {
-            $headerXml = $zip->getFromName('word/header1.xml');
-            if ($headerXml) {
-                $headerXml = preg_replace('/w:val="single"\s+w:sz="0"/', 'w:val="none" w:sz="0"', $headerXml);
-                $zip->addFromString('word/header1.xml', $headerXml);
-            }
-            $docXml = $zip->getFromName('word/document.xml');
-            if ($docXml) {
-                $docXml = preg_replace('/w:val="single"\s+w:sz="0"/', 'w:val="none" w:sz="0"', $docXml);
-                $zip->addFromString('word/document.xml', $docXml);
-            }
-            $zip->close();
-        }
+        $processor->saveAs($publicPath);
 
         return response()->download($publicPath, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         ]);
-    }
-
-    private function addKpiWordInfoRows($section, array $rows)
-    {
-        $table = $section->addTable(['borderSize' => 0, 'cellMargin' => 40]);
-        foreach ($rows as $row) {
-            $label = $row[0];
-            $value = $row[1] ?? '';
-            $table->addRow();
-            $c1 = $table->addCell(3600, ['borderSize' => 0]);
-            if (strpos($label, '/') !== false) {
-                $parts = explode('/', $label, 2);
-                $tr = $c1->addTextRun(['spaceAfter' => 0]);
-                $tr->addText(trim($parts[0]) . ' / ', []);
-                $tr->addText(trim($parts[1]), ['italic' => true]);
-            } else {
-                $c1->addText($label, [], ['spaceAfter' => 0]);
-            }
-            $c2 = $table->addCell(300, ['borderSize' => 0]);
-            $c2->addText(':', [], ['spaceAfter' => 0]);
-            $c3 = $table->addCell(5100, ['borderSize' => 0]);
-            $c3->addText($value, [], ['spaceAfter' => 0]);
-        }
     }
 
     public function destroyKpiTemplate(KpiTemplate $template)
