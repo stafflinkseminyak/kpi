@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where *)",
+      "mcp__Claude_Browser__get_page_text",
+      "mcp__Claude_Browser__read_page",
+      "mcp__mcp-registry__list_connectors",
+      "mcp__mcp-registry__search_mcp_registry",
+      "mcp__visualize__read_me",
+      "mcp__Claude_Browser__read_network_requests",
+      "mcp__Claude_Browser__preview_list"
+    ]
+  }
+}

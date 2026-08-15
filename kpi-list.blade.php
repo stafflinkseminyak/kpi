@@ -14,14 +14,6 @@
         .gauge-gray { stroke:#9ca3af; }
         .gauge-pct { font-size:18px; font-weight:800; fill:#1f2937; }
         .gauge-label { font-size:9px; fill:#9ca3af; }
-        .ytd-card { border:1px solid #e5e7eb; border-radius:8px; padding:14px; background:#fff; }
-        .ytd-card h4 { font-size:13px; font-weight:700; color:#1f2937; margin:0 0 4px 0; text-decoration:underline; }
-        .ytd-val { font-size:18px; font-weight:700; margin:0; }
-        .ytd-row { display:flex; justify-content:space-between; font-size:12px; color:#6b7280; margin:2px 0; }
-        .ytd-bar { height:4px; border-radius:2px; margin:8px 0 10px 0; }
-        .yoy-tag { font-size:10px; margin-top:2px; }
-        .yoy-down { color:#ef4444; }
-        .yoy-up { color:#22c55e; }
     </style>
 
     <div class="space-y-6">
@@ -258,19 +250,15 @@
                     {{-- Running total of Weight of KPIs — flags early if it doesn't add up to 100% --}}
                     <div id="weight_total_banner" style="display:none;margin:12px 20px 16px;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;"></div>
 
-                    {{-- YTD Dashboard Section — visually separated from the KPI table above it
-                         so the two don't read as one crammed block. --}}
-                    <div id="ytd_dashboard_section" style="display:none;">
+                    {{-- Live preview — replaces the old YTD Dashboard box in this exact spot.
+                         YTD Dashboard itself moved to the Performance page (super_admin only);
+                         this always-on preview shows how the KRA table above would look as
+                         "Goals & KPI" cards, updating as you type — no button/pop-up needed. --}}
+                    <div id="kpi_preview_section" style="display:none;">
                         <div style="padding:18px 20px 12px;margin:0 20px 16px;border-top:3px solid #e5e7eb;background:#fafafa;border-radius:0 0 8px 8px;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                                <h3 style="font-size:15px;font-weight:700;color:#1f2937;margin:0;">📊 YTD Dashboard</h3>
-                                <div style="display:flex;gap:6px;align-items:center;">
-                                    <span style="font-size:11px;color:#6b7280;border:1px solid #d1d5db;padding:3px 8px;border-radius:4px;">Select YTD Month</span>
-                                    <span style="font-size:11px;font-weight:600;color:#1f2937;border:1px solid #d1d5db;padding:3px 8px;border-radius:4px;">JUN</span>
-                                    <span style="font-size:11px;font-weight:600;color:#1f2937;border:1px solid #d1d5db;padding:3px 8px;border-radius:4px;">2020-21</span>
-                                </div>
-                            </div>
-                            <div id="ytd_cards_grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding-bottom:16px;"></div>
+                            <h3 style="font-size:15px;font-weight:700;color:#1f5f46;margin:0 0 4px;">🎯 Preview: how this will look on Performance</h3>
+                            <p style="margin:0 0 14px;font-size:0.78rem;color:#6b7280;">Updates live as you fill in the table above. Types that can be auto-calculated (Number/Currency/Percentage) get a progress bar; Text type is shown as-is.</p>
+                            <div id="kpi_preview_cards_inline" style="display:flex;flex-direction:column;gap:12px;"></div>
                         </div>
                     </div>
 
@@ -279,11 +267,6 @@
                             style="background-color:#287854 !important; color:white !important; border:none; cursor:pointer;">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                             Add Result Area
-                        </button>
-                        <button type="button" onclick="showKpiPreview()" class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md transition"
-                            style="background-color:#1f5f46 !important; color:white !important; border:none; cursor:pointer;">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1.5 12s3.75-7 10.5-7 10.5 7 10.5 7-3.75 7-10.5 7-10.5-7-10.5-7z"/><circle cx="12" cy="12" r="2.5" stroke-width="2"/></svg>
-                            Preview on Performance
                         </button>
                         @if($isSuperAdmin)
                         <button type="submit" class="inline-flex items-center gap-1 px-3 py-1 text-xs font-semibold text-white rounded-md shadow transition"
@@ -395,19 +378,6 @@
         </section>
         @endif
 
-        {{-- Preview modal: a rough mockup of how this KPI table's indicators would look
-             as motivational "Goals & KPI" cards on the Performance page — built from
-             whatever is currently typed in the form, so Vida can sanity-check it without
-             leaving this page. Purely a client-side preview; nothing here is saved. --}}
-        <div id="kpi_preview_modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.55);z-index:1000;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this) closeKpiPreview()">
-            <div style="background:#f8fafc;border-radius:16px;max-width:640px;width:100%;max-height:85vh;overflow-y:auto;padding:24px;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-                <button type="button" onclick="closeKpiPreview()" title="Close"
-                    style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;line-height:1;cursor:pointer;color:#6b7280;">✕</button>
-                <h3 style="margin:0 0 4px;font-size:1.05rem;font-weight:800;color:#1f5f46;">🎯 Preview: how this will look on Performance</h3>
-                <p style="margin:0 0 18px;font-size:0.78rem;color:#6b7280;">A rough mockup based on what you're currently filling in on this form. Types that can be auto-calculated (Number/Currency/Percentage) get a progress bar; Text type is just shown as-is.</p>
-                <div id="kpi_preview_cards" style="display:flex;flex-direction:column;gap:12px;"></div>
-            </div>
-        </div>
     </div>
 
     <script>
@@ -430,8 +400,8 @@
         var placeholder = document.getElementById('kpi_placeholder');
         var tbody = document.getElementById('kpi_table_body');
         var title = document.getElementById('kpi_table_title');
-        var ytdSection = document.getElementById('ytd_dashboard_section');
-        var ytdGrid = document.getElementById('ytd_cards_grid');
+        var previewSection = document.getElementById('kpi_preview_section');
+        var previewCards = document.getElementById('kpi_preview_cards_inline');
         var weightBanner = document.getElementById('weight_total_banner');
         var areaCounter = 0;
         var isDuplicating = false; // true while a "Duplicate" is waiting for a new Division/Sub-Division
@@ -484,6 +454,10 @@
         tbody.addEventListener('input', function(e) {
             if (e.target && e.target.name && e.target.name.indexOf('[weight]') !== -1) updateWeightTotal();
         });
+        // Same delegation for the live preview — any edit to Key Result Area, KPI,
+        // Weight, Target, or Target Type should refresh it immediately.
+        tbody.addEventListener('input', updatePreview);
+        tbody.addEventListener('change', updatePreview);
 
         function createGaugeSVG(percent, color) {
             var capped = Math.min(percent, 100);
@@ -500,36 +474,6 @@
                 '<text x="42" y="55" style="font-size:16px;font-weight:800;fill:#1f2937;">' + percent + '%</text>' +
                 '<text x="88" y="65" style="font-size:8px;fill:#9ca3af;">100%</text>' +
                 '</svg>';
-        }
-
-        function renderYTD(dashData) {
-            ytdGrid.innerHTML = '';
-            if (!dashData || !dashData.length) {
-                ytdSection.style.display = 'none';
-                return;
-            }
-            ytdSection.style.display = 'block';
-
-            dashData.forEach(function(card) {
-                var barColor = card.color === 'teal' ? '#14b8a6' : card.color === 'gold' ? '#eab308' : card.color === 'red' ? '#ef4444' : '#d1d5db';
-                var valColor = card.color === 'teal' ? '#14b8a6' : card.color === 'gold' ? '#eab308' : card.color === 'red' ? '#ef4444' : '#6b7280';
-                var yoyClass = card.yoy_dir === 'down' ? 'yoy-down' : 'yoy-up';
-                var yoyArrow = card.yoy_dir === 'down' ? '↓' : card.yoy_dir === 'up' ? '↑' : '';
-
-                var html = '<div class="ytd-card">';
-                html += '<h4>' + card.title + '</h4>';
-                html += '<p class="ytd-val" style="color:' + valColor + ';">' + card.value + '</p>';
-                var tLabel = card.target_label || 'Target';
-                html += '<div class="ytd-row"><span>' + tLabel + '</span><span style="font-weight:600;">' + card.target + '</span></div>';
-                html += '<div class="ytd-row"><span>Last Year</span><span>' + card.last_year + '</span></div>';
-                html += '<div class="ytd-bar" style="background:' + barColor + ';"></div>';
-                html += '<div style="text-align:center;">' + createGaugeSVG(Math.min(card.percent, 200) > 100 ? 100 : card.percent, card.color) + '</div>';
-                if (card.yoy) {
-                    html += '<div class="yoy-tag ' + yoyClass + '" style="text-align:center;"><small>YoY</small> <strong>' + card.yoy + '</strong> ' + yoyArrow + '</div>';
-                }
-                html += '</div>';
-                ytdGrid.innerHTML += html;
-            });
         }
 
         function addAreaToTable(area) {
@@ -733,7 +677,6 @@
             areaCounter = 0;
 
             var areas = [];
-            var ytdData = null;
 
             if (Array.isArray(kpiData)) {
                 areas = kpiData;
@@ -748,14 +691,17 @@
                         }
                     });
                 }
-                ytdData = kpiData.ytd_dashboard || null;
+                // 'ytd_dashboard', if present, is intentionally not read here — it's a
+                // separate, mostly-static department scorecard (now shown on the
+                // Performance page, super_admin only) and has nothing to do with this
+                // KRA table's own live preview below.
             }
 
             if (areas.length === 0) areas = [{ no: 1, key_result_area: '', indicators: [{ kpi: '', weight: '', target: '' }] }];
             areas.forEach(function(area) { addAreaToTable(area); });
 
-            renderYTD(ytdData);
             updateWeightTotal();
+            updatePreview();
         }
 
         window.addResultArea = function() {
@@ -970,7 +916,15 @@
             return html;
         }
 
-        function renderAreaCard(group) {
+        // One accent color per Key Result Area (cycling), so a set of several
+        // areas reads as a colorful board at a glance instead of identical white
+        // cards — independent of the gauge's own status color (which stays
+        // teal/gold/red/gray, since that one has to keep meaning "on track" vs
+        // "at risk"). Same palette used server-side in goals-cards.blade.php.
+        var AREA_ACCENT_COLORS = ['#1d4ed8', '#b45309', '#6d28d9', '#15803d', '#0f766e', '#be185d'];
+
+        function renderAreaCard(group, areaIndex) {
+            var accent = AREA_ACCENT_COLORS[areaIndex % AREA_ACCENT_COLORS.length];
             var results = group.rows.map(function(r) {
                 var res = computeIndicatorResult(r);
                 res.kpi = r.kpi; res.weight = r.weight; res.target = r.target; res.actual = r.actual; res.type = r.type;
@@ -992,11 +946,11 @@
             }
             var gaugeColor = areaPct === null ? 'gray' : areaPct >= 100 ? 'teal' : areaPct >= 50 ? 'gold' : 'red';
 
-            var html = '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;">';
+            var html = '<div style="background:#fff;border:1px solid #e5e7eb;border-top:4px solid ' + accent + ';border-radius:12px;padding:16px 18px;">';
             html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;flex-wrap:wrap;">';
             html += '<div style="flex-shrink:0;">' + createGaugeSVG(areaPct === null ? 0 : areaPct, gaugeColor) + '</div>';
             html += '<div style="flex:1;min-width:160px;">';
-            html += '<h4 style="margin:0 0 2px;font-size:0.95rem;font-weight:800;color:#1b4332;">' + escapeHtml(group.area) + '</h4>';
+            html += '<h4 style="margin:0 0 2px;font-size:0.95rem;font-weight:800;color:' + accent + ';">' + escapeHtml(group.area) + '</h4>';
             html += '<div style="font-size:0.72rem;color:#9ca3af;">' + (areaPct === null ? 'Not enough data to calculate yet' : 'Weighted average across this area') + '</div>';
             html += '</div>';
             html += '</div>';
@@ -1007,7 +961,10 @@
             return html;
         }
 
-        window.showKpiPreview = function() {
+        // Renders inline, right where the old YTD Dashboard box used to sit — no
+        // button, no pop-up. Called after every table render and on every edit to
+        // the table (see the tbody 'input'/'change' listeners above).
+        function updatePreview() {
             var rows = [];
             var currentArea = '';
             tbody.querySelectorAll('tr').forEach(function(rowEl) {
@@ -1027,6 +984,12 @@
                 });
             });
 
+            if (!rows.length) {
+                previewSection.style.display = 'none';
+                return;
+            }
+            previewSection.style.display = 'block';
+
             // Group indicators by area, preserving the order areas first appear in.
             var groups = [];
             var groupIndex = {};
@@ -1035,17 +998,8 @@
                 groups[groupIndex[r.area]].rows.push(r);
             });
 
-            var container = document.getElementById('kpi_preview_cards');
-            container.innerHTML = groups.length
-                ? groups.map(renderAreaCard).join('')
-                : '<p style="color:#9ca3af;font-size:0.85rem;text-align:center;padding:20px;">No indicators filled in yet.</p>';
-
-            document.getElementById('kpi_preview_modal').style.display = 'flex';
-        };
-
-        window.closeKpiPreview = function() {
-            document.getElementById('kpi_preview_modal').style.display = 'none';
-        };
+            previewCards.innerHTML = groups.map(renderAreaCard).join('');
+        }
 
         window.loadTemplate = function(divId, subDivId, posId) {
             isDuplicating = false; // Edit always loads/overwrites from the real saved template

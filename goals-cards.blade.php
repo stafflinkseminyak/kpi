@@ -14,13 +14,20 @@
 @if(empty($groups))
     <p style="color:#9ca3af;font-size:0.85rem;text-align:center;padding:20px 0;">No KPI targets have been set for this position yet.</p>
 @else
+    @php
+        // One accent per Key Result Area (cycling) so several areas read as a
+        // colorful board at a glance — same palette as the live Preview on the
+        // KPI builder page (kpi-list.blade.php), kept in sync intentionally.
+        $areaAccentColors = ['#1d4ed8', '#b45309', '#6d28d9', '#15803d', '#0f766e', '#be185d'];
+    @endphp
     <div style="display:flex;flex-direction:column;gap:14px;">
         @foreach($groups as $group)
-            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;">
+            @php $accent = $areaAccentColors[$loop->index % count($areaAccentColors)]; @endphp
+            <div style="background:#fff;border:1px solid #e5e7eb;border-top:4px solid {{ $accent }};border-radius:12px;padding:16px 18px;">
                 <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;flex-wrap:wrap;">
                     <div style="flex-shrink:0;">{!! $group['area_gauge_svg'] !!}</div>
                     <div style="flex:1;min-width:160px;">
-                        <h4 style="margin:0 0 2px;font-size:0.95rem;font-weight:800;color:#1b4332;">{{ $group['area'] }}</h4>
+                        <h4 style="margin:0 0 2px;font-size:0.95rem;font-weight:800;color:{{ $accent }};">{{ $group['area'] }}</h4>
                         <div style="font-size:0.72rem;color:#9ca3af;">
                             {{ $group['area_pct'] === null ? 'Not enough data to calculate yet' : 'Weighted average across this area' }}
                         </div>
