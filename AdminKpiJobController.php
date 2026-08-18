@@ -485,8 +485,11 @@ public function index(Request $request)
         if ($employeeId) {
             $employee = \App\Models\Employee::find($employeeId);
             $formData = is_array($employee?->contract?->form_data) ? $employee->contract->form_data : [];
-            // division_id is a required column — fall back to the Employee's own
-            // division_id in the unlikely case their contract link is missing it.
+            // Purely informational (shown in the Saved Templates list) — fall back
+            // to the Employee's own division_id if their contract link is missing
+            // it. Can end up null (e.g. an intern added without a Contract yet),
+            // which the kpi_templates.division_id column now allows — see the
+            // 2026_08_18_make_division_id_nullable_in_kpi_templates_table migration.
             $attributes['division_id'] = $employee?->contract?->division_id ?? $employee?->division_id;
             $attributes['sub_division_id'] = $formData['sub_division_id'] ?? null;
             $attributes['position_id'] = $formData['position_id'] ?? null;
