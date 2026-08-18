@@ -294,7 +294,7 @@ public function index(Request $request)
         // division+sub-division, then division-only) — see KpiTemplate::match().
         $template = KpiTemplate::match($divisionId, $subDivisionId, $positionId);
 
-        return $this->respondWithKpiTemplate($template);
+        return $this->respondWithKpiTemplate($template, [], $positionId);
     }
 
     /**
@@ -313,6 +313,8 @@ public function index(Request $request)
         $employee = \App\Models\Employee::findOrFail($employeeId);
         $template = KpiTemplate::forEmployee($employee);
         $isPersonal = $template && (int) $template->employee_id === (int) $employee->id;
+        $formData = is_array($employee->contract?->form_data) ? $employee->contract->form_data : [];
+        $positionId = $formData['position_id'] ?? null;
 
         return $this->respondWithKpiTemplate($template, [
             'employee_id' => $employee->id,
@@ -320,7 +322,7 @@ public function index(Request $request)
             // Tells the builder whether Save will update an existing personal
             // KPI or create a brand-new one (starting from the copy above).
             'is_personal' => $isPersonal,
-        ]);
+        ], $positionId);
     }
 
     /**
@@ -328,10 +330,24 @@ public function index(Request $request)
      * getKpiTemplateForEmployee() (one specific person) — everything past
      * "which template did we resolve" (data-shape normalization, live YTD
      * Dashboard numbers, JSON response) is identical either way.
+     *
+     * $positionId, when given, is used only when there's no existing template
+     * at all (brand new KPI) — the starter rows are then built from that
+     * Position's Responsibilities catalog (see
+     * KpiTemplate::defaultKpiDataForPosition()) instead of the generic
+     * one-size-fits-all placeholder, so a fresh KPI already reads as relevant
+     * to the position instead of random — still fully editable either way.
      */
-    private function respondWithKpiTemplate(?KpiTemplate $template, array $extra = [])
+    private function respondWithKpiTemplate(?KpiTemplate $template, array $extra = [], $positionId = null)
     {
-        $kpiData = $template ? $template->kpi_data : KpiTemplate::defaultKpiData();
+        if ($template) {
+            $kpiData = $template->kpi_data;
+        } else {
+            $kpiData = KpiTemplate::defaultKpiDataForPosition($positionId);
+            if (empty($kpiData)) {
+                $kpiData = KpiTemplate::defaultKpiData();
+            }
+        }
 
         // Ensure data is in new array format (not old associative format)
         if (is_array($kpiData) && !empty($kpiData)) {

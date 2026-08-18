@@ -301,6 +301,65 @@ class KpiTemplate extends Model
             . '</svg>';
     }
 
+    /**
+     * Builds starter KRA/KPI/Weight/Target rows from the Responsibilities
+     * catalog already maintained for this Position on the Contract page
+     * (Responsibility::position_id) — one Key Result Area per responsibility,
+     * its description as the KPI text, weight split evenly across however
+     * many responsibilities exist (still fully editable afterwards), and
+     * Target left as an explicit placeholder since responsibilities don't
+     * carry a measurable number. Returns [] when the position has no
+     * responsibilities catalogued yet, so the caller can fall back to the
+     * generic defaultKpiData() below instead of an empty builder.
+     */
+    public static function defaultKpiDataForPosition($positionId): array
+    {
+        if (empty($positionId)) {
+            return [];
+        }
+
+        $responsibilities = \App\Models\Responsibility::where('position_id', $positionId)
+            ->orderBy('id')
+            ->get();
+
+        $count = $responsibilities->count();
+        if ($count === 0) {
+            return [];
+        }
+
+        $baseWeight = round(100 / $count, 2);
+        $assigned = 0.0;
+        $areas = [];
+
+        foreach ($responsibilities as $i => $r) {
+            $isLast = $i === $count - 1;
+            // Last item soaks up the rounding remainder so weights always sum to 100.
+            $weight = $isLast ? round(100 - $assigned, 2) : $baseWeight;
+            $assigned += $weight;
+            $weightDisplay = rtrim(rtrim(number_format($weight, 2), '0'), '.');
+
+            $kraLabel = $r->title_en ?: $r->title_id ?: ('Responsibility ' . ($i + 1));
+            $kpiId = $r->description_id ?: $r->title_id ?: $kraLabel;
+            $kpiEn = $r->description_en ?: $r->title_en ?: $kraLabel;
+
+            $areas[] = [
+                'no' => $i + 1,
+                'key_result_area' => $kraLabel,
+                'indicators' => [
+                    [
+                        'kpi' => $kpiId,
+                        'kpi_en' => $kpiEn,
+                        'weight' => $weightDisplay,
+                        'target' => 'Akan ditentukan',
+                        'target_en' => 'To be defined',
+                    ],
+                ],
+            ];
+        }
+
+        return $areas;
+    }
+
     public static function defaultKpiData(): array
     {
         return [
