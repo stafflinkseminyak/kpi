@@ -527,13 +527,29 @@ public function index(Request $request)
         }
 
         // Mirrors the KPI builder's own table — Key Result Area / KPI / Weight /
-        // Target — with the Key Result Area repeated on every indicator row under it.
+        // Target. Key Result Area and Weight are merged (w:vMerge) down the group
+        // of indicator rows under them — same look as the KPI builder's table and
+        // the boss's reference document — with the Weight column showing the
+        // area's total (summed) weight once per group, and each indicator's own
+        // individual weight folded into its KPI text as "(NN%)" so it isn't lost.
+        //
+        // Note: merging cells across a page break can, per an earlier finding,
+        // render the merged text on the wrong page in Word — accepted as a
+        // known/rare trade-off in exchange for matching the requested format.
         $rows = [];
         foreach ($template->areas() as $area) {
-            foreach (($area['indicators'] ?? []) as $ind) {
-                if (($ind['kpi'] ?? '') === '' && ($ind['weight'] ?? '') === '') {
-                    continue; // skip genuinely-blank rows left in the builder
-                }
+            $indicators = array_values(array_filter($area['indicators'] ?? [], function ($ind) {
+                return ($ind['kpi'] ?? '') !== '' || ($ind['weight'] ?? '') !== '';
+            }));
+            if (empty($indicators)) {
+                continue;
+            }
+            $areaWeightTotal = 0.0;
+            foreach ($indicators as $ind) {
+                $areaWeightTotal += (float) preg_replace('/[^\d.\-]/', '', (string) ($ind['weight'] ?? ''));
+            }
+            $count = count($indicators);
+            foreach ($indicators as $i => $ind) {
                 $rows[] = [
                     'area' => $area['key_result_area'] ?? '',
                     'kpi' => $ind['kpi'] ?? '',
@@ -541,6 +557,9 @@ public function index(Request $request)
                     'target' => $ind['target'] ?? '',
                     'target_en' => $ind['target_en'] ?? '',
                     'weight' => $ind['weight'] ?? '',
+                    'area_index' => $i,
+                    'area_count' => $count,
+                    'area_weight_total' => $areaWeightTotal,
                 ];
             }
         }
@@ -573,6 +592,7 @@ public function index(Request $request)
         foreach ($rows as $row) {
             $weightNum = (float) preg_replace('/[^\d.\-]/', '', (string) $row['weight']);
             $totalWeight += $weightNum;
+            $areaWeightNum = (float) ($row['area_weight_total'] ?? $weightNum);
             $rowsForXml[] = [
                 'area' => (string) $row['area'],
                 'kpi' => (string) $row['kpi'],
@@ -580,6 +600,9 @@ public function index(Request $request)
                 'target' => (string) $row['target'],
                 'target_en' => (string) ($row['target_en'] ?? ''),
                 'weight_display' => rtrim(rtrim(number_format($weightNum, 2), '0'), '.'),
+                'area_weight_display' => rtrim(rtrim(number_format($areaWeightNum, 2), '0'), '.'),
+                'area_index' => (int) ($row['area_index'] ?? 0),
+                'area_count' => (int) ($row['area_count'] ?? 1),
             ];
         }
 
@@ -639,11 +662,20 @@ public function index(Request $request)
     }
 
     /**
-     * Builds the raw <w:tr> XML for every KPI row, with the No. and Key Result
-     * Area cells vertically merged (w:vMerge) across each area's indicators —
-     * "restart" on the first indicator in an area, plain continuation (empty
-     * cell) on the rest, exactly like the merged No./Key Result Area columns in
-     * the KPI builder's own table.
+     * Builds the raw <w:tr> XML for every KPI row. Key Result Area and Weight
+     * are vertically merged (w:vMerge) across an area's indicator rows when it
+     * has more than one — "restart" (with the area's total weight) on the
+     * first indicator, plain continuation (empty cell) on the rest — matching
+     * the boss's reference document. A single-indicator area isn't merged at
+     * all (nothing to merge), so it renders exactly as before. Each
+     * indicator's own weight is folded into its KPI text as "(NN%)" whenever
+     * it's part of a merged group, since the Weight column no longer shows it
+     * directly in that case.
+     *
+     * Known trade-off: a merged cell that happens to straddle a page break can
+     * render its text on the wrong page (a Word rendering quirk found earlier
+     * when this was first tried) — accepted here since matching this layout
+     * was requested specifically.
      */
     private function buildKpiTableRowsXml(array $rows): string
     {
@@ -652,23 +684,37 @@ public function index(Request $request)
 
         $xml = '';
         foreach ($rows as $row) {
-            // Key Result Area repeats on every indicator row under it, rather than
-            // being merged (w:vMerge) down a single cell — a merged cell that happens
-            // to straddle a page break renders its text on whichever side Word
-            // decides, which can put the area label on the row after the one it
-            // belongs to. Repeating it is a little more verbose but never misplaced.
-            $areaText = self::escapeForWordXml($row['area']);
-            $kraCell = '<w:tc><w:tcPr><w:tcW w:w="1800" w:type="dxa"/>' . $cellMar . '<w:vAlign w:val="center"/></w:tcPr>'
-                . '<w:p><w:r><w:rPr>' . $font . '<w:b/><w:bCs/><w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>' . $areaText . '</w:t></w:r></w:p></w:tc>';
+            $areaCount = $row['area_count'] ?? 1;
+            $isGrouped = $areaCount > 1;
+            $isFirstInGroup = ($row['area_index'] ?? 0) === 0;
+            $vMerge = $isFirstInGroup ? '<w:vMerge w:val="restart"/>' : '<w:vMerge/>';
 
+            if (!$isGrouped) {
+                $areaText = self::escapeForWordXml($row['area']);
+                $kraCell = '<w:tc><w:tcPr><w:tcW w:w="1800" w:type="dxa"/>' . $cellMar . '<w:vAlign w:val="center"/></w:tcPr>'
+                    . '<w:p><w:r><w:rPr>' . $font . '<w:b/><w:bCs/><w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>' . $areaText . '</w:t></w:r></w:p></w:tc>';
+                $weightCell = '<w:tc><w:tcPr><w:tcW w:w="900" w:type="dxa"/>' . $cellMar . '<w:vAlign w:val="center"/></w:tcPr>'
+                    . '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr>' . $font . '<w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>' . self::escapeForWordXml($row['weight_display']) . '%</w:t></w:r></w:p></w:tc>';
+            } elseif ($isFirstInGroup) {
+                $areaText = self::escapeForWordXml($row['area']);
+                $kraCell = '<w:tc><w:tcPr><w:tcW w:w="1800" w:type="dxa"/>' . $cellMar . $vMerge . '<w:vAlign w:val="center"/></w:tcPr>'
+                    . '<w:p><w:r><w:rPr>' . $font . '<w:b/><w:bCs/><w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>' . $areaText . '</w:t></w:r></w:p></w:tc>';
+                $weightCell = '<w:tc><w:tcPr><w:tcW w:w="900" w:type="dxa"/>' . $cellMar . $vMerge . '<w:vAlign w:val="center"/></w:tcPr>'
+                    . '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr>' . $font . '<w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>' . self::escapeForWordXml($row['area_weight_display']) . '%</w:t></w:r></w:p></w:tc>';
+            } else {
+                $kraCell = '<w:tc><w:tcPr><w:tcW w:w="1800" w:type="dxa"/>' . $cellMar . $vMerge . '<w:vAlign w:val="center"/></w:tcPr><w:p/></w:tc>';
+                $weightCell = '<w:tc><w:tcPr><w:tcW w:w="900" w:type="dxa"/>' . $cellMar . $vMerge . '<w:vAlign w:val="center"/></w:tcPr><w:p/></w:tc>';
+            }
+
+            // Only annotate with "(NN%)" when merged — otherwise the Weight
+            // column already shows this exact number on its own row.
+            $weightSuffix = $isGrouped ? ' (' . $row['weight_display'] . '%)' : '';
+            $kpiText = self::escapeForWordXml($row['kpi'] . $weightSuffix);
             $kpiEnPara = $row['kpi_en'] !== ''
-                ? '<w:p><w:r><w:rPr>' . $font . '<w:i/><w:iCs/><w:color w:val="595959"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t>' . self::escapeForWordXml($row['kpi_en']) . '</w:t></w:r></w:p>'
+                ? '<w:p><w:r><w:rPr>' . $font . '<w:i/><w:iCs/><w:color w:val="595959"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t>' . self::escapeForWordXml($row['kpi_en'] . $weightSuffix) . '</w:t></w:r></w:p>'
                 : '';
             $kpiCell = '<w:tc><w:tcPr><w:tcW w:w="3600" w:type="dxa"/>' . $cellMar . '<w:vAlign w:val="center"/></w:tcPr>'
-                . '<w:p><w:pPr><w:spacing w:after="30"/></w:pPr><w:r><w:rPr>' . $font . '<w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>' . self::escapeForWordXml($row['kpi']) . '</w:t></w:r></w:p>' . $kpiEnPara . '</w:tc>';
-
-            $weightCell = '<w:tc><w:tcPr><w:tcW w:w="900" w:type="dxa"/>' . $cellMar . '<w:vAlign w:val="center"/></w:tcPr>'
-                . '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr>' . $font . '<w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>' . self::escapeForWordXml($row['weight_display']) . '%</w:t></w:r></w:p></w:tc>';
+                . '<w:p><w:pPr><w:spacing w:after="30"/></w:pPr><w:r><w:rPr>' . $font . '<w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr><w:t>' . $kpiText . '</w:t></w:r></w:p>' . $kpiEnPara . '</w:tc>';
 
             $targetEnPara = $row['target_en'] !== ''
                 ? '<w:p><w:r><w:rPr>' . $font . '<w:i/><w:iCs/><w:color w:val="595959"/><w:sz w:val="19"/><w:szCs w:val="19"/></w:rPr><w:t>' . self::escapeForWordXml($row['target_en']) . '</w:t></w:r></w:p>'
