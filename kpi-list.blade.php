@@ -121,23 +121,33 @@
                     <tbody class="bg-white divide-y divide-gray-200">
                         @php $templates = \App\Models\KpiTemplate::with(['division', 'subDivision', 'position', 'employee'])->latest()->get(); @endphp
                         @forelse ($templates as $tpl)
-                        @php $assigned = $tpl->assignedEmployees(); @endphp
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-2 py-2 text-xs font-medium text-gray-900">{{ $tpl->division?->name ?? '-' }}</td>
-                            <td class="px-2 py-2 text-xs text-gray-600">{{ $tpl->subDivision?->name ?? 'All' }}</td>
-                            <td class="px-2 py-2 text-xs text-gray-600">
+                        @php
+                            $assigned = $tpl->assignedEmployees();
+                            // Only dim a template when EVERY employee it currently covers has
+                            // left — a position-level template still actively covering at
+                            // least one active employee stays normal, even if someone else
+                            // who used to hold that position is now terminated.
+                            $allAssignedTerminated = $assigned->isNotEmpty() && $assigned->every(fn ($e) => $e->status === 'terminated');
+                        @endphp
+                        <tr class="transition" style="{{ $allAssignedTerminated ? 'background:#f3f4f6;' : '' }}" @if(!$allAssignedTerminated) onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''" @endif>
+                            <td class="px-2 py-2 text-xs font-medium" style="color:{{ $allAssignedTerminated ? '#9ca3af' : '#111827' }};">{{ $tpl->division?->name ?? '-' }}</td>
+                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $tpl->subDivision?->name ?? 'All' }}</td>
+                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">
                                 {{ $tpl->position?->name ?? 'All' }}
                                 @if($tpl->employee_id)
-                                    <br><span style="display:inline-block;margin-top:2px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:#ede9fe;color:#5b21b6;white-space:nowrap;">👤 {{ $tpl->employee?->full_name ?? 'Personal' }}</span>
+                                    <br><span style="display:inline-block;margin-top:2px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:{{ $allAssignedTerminated ? '#e5e7eb' : '#ede9fe' }};color:{{ $allAssignedTerminated ? '#6b7280' : '#5b21b6' }};white-space:nowrap;">👤 {{ $tpl->employee?->full_name ?? 'Personal' }}</span>
                                 @endif
                             </td>
-                            <td class="px-2 py-2 text-xs text-gray-600">@php $kd = $tpl->kpi_data ?? []; $cnt = collect($kd)->filter(fn($v,$k) => is_numeric($k))->count(); @endphp {{ $cnt }}</td>
-                            <td class="px-2 py-2 text-xs text-gray-600">
+                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">@php $kd = $tpl->kpi_data ?? []; $cnt = collect($kd)->filter(fn($v,$k) => is_numeric($k))->count(); @endphp {{ $cnt }}</td>
+                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">
                                 @if($assigned->isEmpty())
                                     <span class="text-gray-400 italic">No one yet</span>
                                 @else
                                     <span title="{{ $assigned->pluck('full_name')->implode(', ') }}">
                                         {{ $assigned->count() }} {{ \Illuminate\Support\Str::plural('person', $assigned->count()) }}
+                                        @if($allAssignedTerminated)
+                                            <span style="display:inline-block;margin-left:4px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:#e5e7eb;color:#6b7280;white-space:nowrap;">Terminated</span>
+                                        @endif
                                         <span class="text-gray-400">({{ $assigned->pluck('first_name')->take(2)->implode(', ') }}{{ $assigned->count() > 2 ? ', ...' : '' }})</span>
                                     </span>
                                 @endif
@@ -313,12 +323,19 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($employeesNeedingKpi as $row)
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="px-2 py-2 text-xs font-medium text-gray-900">{{ $row['employee']->full_name }}</td>
-                            <td class="px-2 py-2 text-xs text-gray-600">{{ $row['division_name'] ?? '—' }}</td>
-                            <td class="px-2 py-2 text-xs text-gray-600">{{ $row['sub_division_name'] ?? 'All' }}</td>
-                            <td class="px-2 py-2 text-xs text-gray-600">{{ $row['position_name'] ?? 'All' }}</td>
+                        @php $isTerminated = $row['is_terminated'] ?? false; @endphp
+                        <tr class="transition" style="{{ $isTerminated ? 'background:#f3f4f6;' : '' }}" @if(!$isTerminated) onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''" @endif>
+                            <td class="px-2 py-2 text-xs font-medium" style="color:{{ $isTerminated ? '#9ca3af' : '#111827' }};">
+                                {{ $row['employee']->full_name }}
+                                @if($isTerminated)
+                                    <span style="display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:#e5e7eb;color:#6b7280;white-space:nowrap;">Terminated</span>
+                                @endif
+                            </td>
+                            <td class="px-2 py-2 text-xs" style="color:{{ $isTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $row['division_name'] ?? '—' }}</td>
+                            <td class="px-2 py-2 text-xs" style="color:{{ $isTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $row['sub_division_name'] ?? 'All' }}</td>
+                            <td class="px-2 py-2 text-xs" style="color:{{ $isTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $row['position_name'] ?? 'All' }}</td>
                             <td class="px-2 py-2 text-right">
+                                @unless($isTerminated)
                                 <button type="button"
                                     onclick="createKpiForEmployee({{ $row['division_id'] ?? 'null' }}, {{ $row['sub_division_id'] ?? 'null' }}, {{ $row['position_id'] ?? 'null' }})"
                                     class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition"
@@ -326,6 +343,7 @@
                                     <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                                     Create KPI
                                 </button>
+                                @endunless
                             </td>
                         </tr>
                         @endforeach

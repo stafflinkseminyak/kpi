@@ -196,6 +196,18 @@ public function index(Request $request)
             ->orderBy('first_name')
             ->get();
 
+        // For "Employees Needing a KPI" specifically: terminated employees stay
+        // visible (greyed out in the view via each row's 'is_terminated' flag)
+        // instead of quietly disappearing, so an admin scanning that list can see
+        // who left rather than wondering why a name that used to be there is
+        // gone. Everywhere else on this page (the "By Person" picker, "not linked
+        // to a Contract") still uses $nonTerminatedEmployees above unchanged —
+        // there's no reason to let someone start a new KPI for a person who left.
+        $allEmployeesWithContractRegardlessOfStatus = \App\Models\Employee::with(['contract', 'division'])
+            ->whereNotNull('contract_id')
+            ->orderBy('first_name')
+            ->get();
+
         // Employee.contract_id has to actually be set for someone to be checked at
         // all — an Employee record that predates this link (or was never
         // connected to its Contract) is invisible to this whole feature, same as
@@ -206,7 +218,7 @@ public function index(Request $request)
         $employeesWithoutContract = $nonTerminatedEmployees->whereNull('contract_id')->values();
         $employeesWithoutContractCount = $employeesWithoutContract->count();
 
-        $employeesNeedingKpi = $employeesWithContract
+        $employeesNeedingKpi = $allEmployeesWithContractRegardlessOfStatus
             // A template that resolves but has zero KPI areas (e.g. an old dummy/
             // placeholder record someone started and never filled in) doesn't
             // actually give this person a KPI — treat it the same as no template
@@ -223,6 +235,7 @@ public function index(Request $request)
 
                 return [
                     'employee' => $e,
+                    'is_terminated' => $e->status === 'terminated',
                     'division_id' => $divisionId,
                     'sub_division_id' => $subDivisionId,
                     'position_id' => $positionId,
@@ -233,7 +246,7 @@ public function index(Request $request)
             })
             ->values();
 
-        $employeesAlreadyCoveredCount = $employeesWithContract->count() - $employeesNeedingKpi->count();
+        $employeesAlreadyCoveredCount = $allEmployeesWithContractRegardlessOfStatus->count() - $employeesNeedingKpi->count();
 
         // For the "By Person" mode's employee picker — everyone non-terminated,
         // not just those with a linked Contract. "By Person" mode exists
