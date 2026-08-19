@@ -128,12 +128,30 @@
                             // least one active employee stays normal, even if someone else
                             // who used to hold that position is now terminated.
                             $allAssignedTerminated = $assigned->isNotEmpty() && $assigned->every(fn ($e) => $e->status === 'terminated');
+
+                            // For a personal (employee_id) template, show this employee's
+                            // CURRENT Division/Sub-Division/Position live, via the same
+                            // resolution Employee::resolvedPositionIds() uses everywhere
+                            // else — not the snapshot captured back when the KPI was last
+                            // saved, which goes stale the moment their Division/Sub-Division/
+                            // Position changes afterwards (e.g. an intern who had none at
+                            // save time, assigned one later on the Employee page).
+                            if ($tpl->employee_id && $tpl->employee) {
+                                $liveIds = $tpl->employee->resolvedPositionIds();
+                                $displayDivision = $liveIds['division_id'] ? \App\Models\Division::find($liveIds['division_id']) : null;
+                                $displaySubDivision = $liveIds['sub_division_id'] ? \App\Models\SubDivision::find($liveIds['sub_division_id']) : null;
+                                $displayPosition = $liveIds['position_id'] ? \App\Models\Position::find($liveIds['position_id']) : null;
+                            } else {
+                                $displayDivision = $tpl->division;
+                                $displaySubDivision = $tpl->subDivision;
+                                $displayPosition = $tpl->position;
+                            }
                         @endphp
                         <tr class="transition" style="{{ $allAssignedTerminated ? 'background:#f3f4f6;' : '' }}" @if(!$allAssignedTerminated) onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''" @endif>
-                            <td class="px-2 py-2 text-xs font-medium" style="color:{{ $allAssignedTerminated ? '#9ca3af' : '#111827' }};">{{ $tpl->division?->name ?? '-' }}</td>
-                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $tpl->subDivision?->name ?? 'All' }}</td>
+                            <td class="px-2 py-2 text-xs font-medium" style="color:{{ $allAssignedTerminated ? '#9ca3af' : '#111827' }};">{{ $displayDivision?->name ?? '-' }}</td>
+                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $displaySubDivision?->name ?? 'All' }}</td>
                             <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">
-                                {{ $tpl->position?->name ?? 'All' }}
+                                {{ $displayPosition?->name ?? 'All' }}
                                 @if($tpl->employee_id)
                                     <br><span style="display:inline-block;margin-top:2px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:{{ $allAssignedTerminated ? '#e5e7eb' : '#ede9fe' }};color:{{ $allAssignedTerminated ? '#6b7280' : '#5b21b6' }};white-space:nowrap;">👤 {{ $tpl->employee?->full_name ?? 'Personal' }}</span>
                                 @endif

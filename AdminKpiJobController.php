@@ -313,8 +313,7 @@ public function index(Request $request)
         $employee = \App\Models\Employee::findOrFail($employeeId);
         $template = KpiTemplate::forEmployee($employee);
         $isPersonal = $template && (int) $template->employee_id === (int) $employee->id;
-        $formData = is_array($employee->contract?->form_data) ? $employee->contract->form_data : [];
-        $positionId = $formData['position_id'] ?? null;
+        $positionId = $employee->resolvedPositionIds()['position_id'];
 
         return $this->respondWithKpiTemplate($template, [
             'employee_id' => $employee->id,
@@ -498,15 +497,23 @@ public function index(Request $request)
 
         if ($employeeId) {
             $employee = \App\Models\Employee::find($employeeId);
-            $formData = is_array($employee?->contract?->form_data) ? $employee->contract->form_data : [];
-            // Purely informational (shown in the Saved Templates list) — fall back
-            // to the Employee's own division_id if their contract link is missing
-            // it. Can end up null (e.g. an intern added without a Contract yet),
-            // which the kpi_templates.division_id column now allows — see the
+            // Purely informational (shown in the Saved Templates list) —
+            // Employee::resolvedPositionIds() already falls back to the
+            // Employee's own Division/Sub-Division/Position columns when
+            // there's no Contract (e.g. an intern assigned one directly on
+            // the Employee page). Previously only division_id had that
+            // fallback here — sub_division_id/position_id stayed stuck at
+            // null forever for a contract-less employee even after they were
+            // assigned a Sub-Division/Position, since nothing here ever
+            // looked at the Employee's own columns for those two. Can still
+            // end up all-null for someone with neither a Contract nor a
+            // Division assigned yet, which the kpi_templates.division_id
+            // column now allows — see the
             // 2026_08_18_make_division_id_nullable_in_kpi_templates_table migration.
-            $attributes['division_id'] = $employee?->contract?->division_id ?? $employee?->division_id;
-            $attributes['sub_division_id'] = $formData['sub_division_id'] ?? null;
-            $attributes['position_id'] = $formData['position_id'] ?? null;
+            $ids = $employee ? $employee->resolvedPositionIds() : ['division_id' => null, 'sub_division_id' => null, 'position_id' => null];
+            $attributes['division_id'] = $ids['division_id'];
+            $attributes['sub_division_id'] = $ids['sub_division_id'];
+            $attributes['position_id'] = $ids['position_id'];
         }
 
         $template = KpiTemplate::updateOrCreate($lookupKeys, $attributes);

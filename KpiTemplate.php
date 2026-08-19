@@ -122,18 +122,17 @@ class KpiTemplate extends Model
             return $personal;
         }
 
-        $contract = $employee->contract;
-        if (!$contract) {
+        // Employee::resolvedPositionIds() already falls back to the Employee's
+        // own Division/Sub-Division/Position columns when there's no Contract
+        // (e.g. an intern assigned one directly on the Employee page) — so a
+        // Division/Position-level template can still match here even without
+        // a Contract on file, not just a personal override.
+        $ids = $employee->resolvedPositionIds();
+        if (!$ids['division_id']) {
             return null;
         }
 
-        $formData = is_array($contract->form_data) ? $contract->form_data : [];
-
-        return self::match(
-            $contract->division_id,
-            $formData['sub_division_id'] ?? null,
-            $formData['position_id'] ?? null
-        );
+        return self::match($ids['division_id'], $ids['sub_division_id'], $ids['position_id']);
     }
 
     /**
