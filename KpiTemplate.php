@@ -308,9 +308,10 @@ class KpiTemplate extends Model
      * its description as the KPI text, weight split evenly across however
      * many responsibilities exist (still fully editable afterwards), and
      * Target left as an explicit placeholder since responsibilities don't
-     * carry a measurable number. Returns [] when the position has no
-     * responsibilities catalogued yet, so the caller can fall back to the
-     * generic defaultKpiData() below instead of an empty builder.
+     * carry a measurable number. Returns [] when no Position is given, or
+     * that Position has no responsibilities catalogued yet — the builder
+     * just starts blank in that case (see respondWithKpiTemplate()) rather
+     * than falling back to the old generic one-size-fits-all placeholder.
      */
     public static function defaultKpiDataForPosition($positionId): array
     {
@@ -339,19 +340,24 @@ class KpiTemplate extends Model
             $weightDisplay = rtrim(rtrim(number_format($weight, 2), '0'), '.');
 
             $kraLabel = $r->title_en ?: $r->title_id ?: ('Responsibility ' . ($i + 1));
-            $kpiId = $r->description_id ?: $r->title_id ?: $kraLabel;
-            $kpiEn = $r->description_en ?: $r->title_en ?: $kraLabel;
+            // The 'kpi'/'target' fields are the primary ones (English, in
+            // practice — see the builder's field labels), 'kpi_en'/'target_en'
+            // the secondary translation slot (Indonesian, despite the "_en"
+            // name — the field names are legacy and no longer match what
+            // actually goes in them).
+            $kpiPrimary = $r->description_en ?: $r->title_en ?: $kraLabel;
+            $kpiSecondary = $r->description_id ?: $r->title_id ?: $kraLabel;
 
             $areas[] = [
                 'no' => $i + 1,
                 'key_result_area' => $kraLabel,
                 'indicators' => [
                     [
-                        'kpi' => $kpiId,
-                        'kpi_en' => $kpiEn,
+                        'kpi' => $kpiPrimary,
+                        'kpi_en' => $kpiSecondary,
                         'weight' => $weightDisplay,
-                        'target' => 'Akan ditentukan',
-                        'target_en' => 'To be defined',
+                        'target' => 'To be defined',
+                        'target_en' => 'Akan ditentukan',
                     ],
                 ],
             ];

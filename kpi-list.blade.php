@@ -585,11 +585,14 @@
 
                         wrap.appendChild(typeSelect); wrap.appendChild(targetInput);
 
-                        // English translation — optional; shown as an italic sub-line
-                        // under the Target on the generated KPI acknowledgement document.
+                        // Field name stays target_en (unchanged) — but in practice the
+                        // Target box above is filled in English first (the language that
+                        // actually appears as primary in the generated document), so this
+                        // second box is where the Indonesian version goes, not English.
+                        // Shown as an italic sub-line under the Target on the document.
                         var targetEnInput = document.createElement('input'); targetEnInput.type = 'text';
                         targetEnInput.name = 'kpi_data[' + areaIdx + '][indicators][' + indIdx + '][target_en]';
-                        targetEnInput.value = ind.target_en || ''; targetEnInput.placeholder = 'English (optional)';
+                        targetEnInput.value = ind.target_en || ''; targetEnInput.placeholder = 'Bahasa Indonesia (optional)';
                         if (targetEnInput.value) targetEnInput.title = targetEnInput.value;
                         targetEnInput.addEventListener('input', function() { targetEnInput.title = targetEnInput.value; });
                         targetEnInput.style.cssText = 'width:100%;margin-top:3px;border:1px solid #e5e7eb;border-radius:4px;padding:3px 6px;font-size:11px;font-style:italic;color:#6b7280;text-align:center;';
@@ -622,11 +625,14 @@
                         delBtn.addEventListener('click', function() { removeIndicatorRow(tr); });
                         kpiWrap.appendChild(input); kpiWrap.appendChild(delBtn);
 
-                        // English translation — optional; shown as an italic sub-line
-                        // under the KPI name on the generated KPI acknowledgement document.
+                        // Field name stays kpi_en (unchanged) — but in practice the KPI
+                        // box above is filled in English first (the language that
+                        // actually appears as primary in the generated document), so this
+                        // second box is where the Indonesian version goes, not English.
+                        // Shown as an italic sub-line under the KPI name on the document.
                         var kpiEnInput = document.createElement('input'); kpiEnInput.type = 'text';
                         kpiEnInput.name = 'kpi_data[' + areaIdx + '][indicators][' + indIdx + '][kpi_en]';
-                        kpiEnInput.value = ind.kpi_en || ''; kpiEnInput.placeholder = 'English translation (optional)';
+                        kpiEnInput.value = ind.kpi_en || ''; kpiEnInput.placeholder = 'Bahasa Indonesia (optional)';
                         if (kpiEnInput.value) kpiEnInput.title = kpiEnInput.value;
                         kpiEnInput.addEventListener('input', function() { kpiEnInput.title = kpiEnInput.value; });
                         kpiEnInput.style.cssText = 'width:100%;margin-top:3px;border:1px solid #e5e7eb;border-radius:4px;padding:3px 6px;font-size:11px;font-style:italic;color:#6b7280;';

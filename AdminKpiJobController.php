@@ -334,20 +334,18 @@ public function index(Request $request)
      * $positionId, when given, is used only when there's no existing template
      * at all (brand new KPI) — the starter rows are then built from that
      * Position's Responsibilities catalog (see
-     * KpiTemplate::defaultKpiDataForPosition()) instead of the generic
-     * one-size-fits-all placeholder, so a fresh KPI already reads as relevant
-     * to the position instead of random — still fully editable either way.
+     * KpiTemplate::defaultKpiDataForPosition()), so a fresh KPI already reads
+     * as relevant to the position instead of random — still fully editable
+     * either way. When no Position is selected yet, or that Position has no
+     * Responsibilities catalogued, the builder just starts blank (the old
+     * generic one-size-fits-all placeholder — Recruitment/Training and
+     * Development/etc. — read as random noise on unrelated positions, so it's
+     * gone rather than shown by default; the builder's own renderTable()
+     * already turns an empty area list into one blank starter row).
      */
     private function respondWithKpiTemplate(?KpiTemplate $template, array $extra = [], $positionId = null)
     {
-        if ($template) {
-            $kpiData = $template->kpi_data;
-        } else {
-            $kpiData = KpiTemplate::defaultKpiDataForPosition($positionId);
-            if (empty($kpiData)) {
-                $kpiData = KpiTemplate::defaultKpiData();
-            }
-        }
+        $kpiData = $template ? $template->kpi_data : KpiTemplate::defaultKpiDataForPosition($positionId);
 
         // Ensure data is in new array format (not old associative format)
         if (is_array($kpiData) && !empty($kpiData)) {
