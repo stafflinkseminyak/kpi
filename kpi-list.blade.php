@@ -110,11 +110,11 @@
                 <table class="w-full">
                     <thead class="bg-[#e6f1ec]">
                         <tr>
-                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Division</th>
+                            <th class="pl-4 pr-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Division</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Sub-Division</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Position</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Areas</th>
-                            <th class="px-2 py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            <th class="pl-2 pr-4 py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -147,16 +147,11 @@
                             }
                         @endphp
                         <tr class="transition" style="{{ $allAssignedTerminated ? 'background:#f3f4f6;' : '' }}" @if(!$allAssignedTerminated) onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''" @endif>
-                            <td class="px-2 py-2 text-xs font-medium" style="color:{{ $allAssignedTerminated ? '#9ca3af' : '#111827' }};">{{ $displayDivision?->name ?? '-' }}</td>
+                            <td class="pl-4 pr-2 py-2 text-xs font-medium" style="color:{{ $allAssignedTerminated ? '#9ca3af' : '#111827' }};">{{ $displayDivision?->name ?? '-' }}</td>
                             <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $displaySubDivision?->name ?? 'All' }}</td>
-                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">
-                                {{ $displayPosition?->name ?? 'All' }}
-                                @if($tpl->employee_id)
-                                    <br><span style="display:inline-block;margin-top:2px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:{{ $allAssignedTerminated ? '#e5e7eb' : '#ede9fe' }};color:{{ $allAssignedTerminated ? '#6b7280' : '#5b21b6' }};white-space:nowrap;">👤 {{ $tpl->employee?->full_name ?? 'Personal' }}</span>
-                                @endif
-                            </td>
+                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $displayPosition?->name ?? 'All' }}</td>
                             <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">@php $kd = $tpl->kpi_data ?? []; $cnt = collect($kd)->filter(fn($v,$k) => is_numeric($k))->count(); @endphp {{ $cnt }}</td>
-                            <td class="px-2 py-2 text-right relative">
+                            <td class="pl-2 pr-4 py-2 text-right relative">
                                 @php
                                     $warnLabel = $tpl->employee_id
                                         ? 'Personal KPI — ' . ($tpl->employee?->full_name ?? 'this employee')
@@ -184,10 +179,10 @@
                                     </button>
                                     @endif
                                     <button type="button" onclick='duplicateTemplate(@json($tpl->kpi_data)); closeAllActionMenus();'
-                                        title="Copy this template's KPI table into a new Division/Sub-Division/Position"
+                                        title="Use this template's KPI table as the starting point for a new Division/Sub-Division/Position"
                                         class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                                        Duplicate
+                                        Use Template
                                     </button>
                                     <button type="button" onclick='openDeleteConfirm({{ $tpl->id }}, @json($warnLabel), @json($warnAssigned))'
                                         class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition">
@@ -302,6 +297,9 @@
              then they'll fall into the KPI-needed list like everyone else. --}}
         @if($employeesWithoutContractCount > 0)
         <section class="bg-white rounded-lg shadow border border-gray-100">
+            <div class="p-4 border-b">
+                <h3 class="text-base font-semibold text-gray-900">🔔 Notification</h3>
+            </div>
             <div class="px-4 pt-3 pb-1">
                 <p class="text-xs font-semibold" style="color:#991b1b;">⚠️ {{ $employeesWithoutContractCount }} {{ \Illuminate\Support\Str::plural('employee', $employeesWithoutContractCount) }} not linked to a Contract yet, so their Division/Position is unknown.</p>
             </div>
@@ -361,21 +359,53 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse($activeKpi as $row)
+                        @php
+                            $rowTpl = $row['template'];
+                            $rowMenuKey = 'active-' . $rowTpl->id . '-' . $row['employee']->id;
+                            $rowAssigned = $rowTpl->assignedEmployees();
+                            $rowWarnLabel = $rowTpl->employee_id
+                                ? 'Personal KPI — ' . $row['employee']->full_name
+                                : $row['division_name'] . ' — ' . ($row['sub_division_name'] ?? 'All') . ($row['position_name'] ? ' — ' . $row['position_name'] : '');
+                            $rowWarnAssigned = $rowAssigned->count() > 1
+                                ? 'This is currently linked to ' . $rowAssigned->count() . ' employees (' . $rowAssigned->pluck('full_name')->implode(', ') . ') — deleting it removes their KPI/progress too.'
+                                : '';
+                        @endphp
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-2 py-2 text-xs font-medium text-gray-900">{{ $row['employee']->full_name }}</td>
                             <td class="px-2 py-2 text-xs text-gray-600">{{ $row['division_name'] ?? '—' }}</td>
                             <td class="px-2 py-2 text-xs text-gray-600">{{ $row['position_name'] ?? 'All' }}</td>
                             <td class="px-2 py-2 text-xs text-gray-600 text-center">{{ $row['area_count'] }}</td>
-                            <td class="px-2 py-2 text-right">
-                                <button type="button"
-                                    @if($row['template']->employee_id)
-                                        onclick="loadPersonalTemplate({{ $row['employee']->id }})"
-                                    @else
-                                        onclick="loadTemplate({{ $row['division_id'] ?? 'null' }}, {{ $row['sub_division_id'] ?? 'null' }}, {{ $row['position_id'] ?? 'null' }})"
-                                    @endif
-                                    class="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-md transition" style="background:#f3f4f6;color:#374151;border:none;cursor:pointer;">
-                                    View
+                            <td class="px-2 py-2 text-right relative">
+                                <button type="button" onclick="toggleActionsMenu(event, '{{ $rowMenuKey }}')" title="Actions"
+                                    class="inline-flex items-center justify-center w-7 h-7 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
                                 </button>
+                                <div id="actions-menu-{{ $rowMenuKey }}" class="actions-menu" style="display:none;position:fixed;z-index:1000;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:140px;overflow:hidden;">
+                                    @if($rowTpl->employee_id)
+                                    <button type="button" onclick="loadPersonalTemplate({{ $row['employee']->id }}); closeAllActionMenus();"
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/><path d="M17.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 8.5-8.5z"/></svg>
+                                        Edit
+                                    </button>
+                                    @else
+                                    <button type="button" onclick="loadTemplate({{ $row['division_id'] ?? 'null' }}, {{ $row['sub_division_id'] ?? 'null' }}, {{ $row['position_id'] ?? 'null' }}); closeAllActionMenus();"
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/><path d="M17.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 8.5-8.5z"/></svg>
+                                        Edit
+                                    </button>
+                                    @endif
+                                    <button type="button" onclick='duplicateTemplate(@json($rowTpl->kpi_data)); closeAllActionMenus();'
+                                        title="Use this template's KPI table as the starting point for a new Division/Sub-Division/Position"
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                        Use Template
+                                    </button>
+                                    <button type="button" onclick='openDeleteConfirm({{ $rowTpl->id }}, @json($rowWarnLabel), @json($rowWarnAssigned))'
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12"/><path d="M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+                                        Delete
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         @empty
@@ -404,6 +434,17 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse($inactiveKpi as $row)
+                        @php
+                            $rowTpl = $row['template'];
+                            $rowMenuKey = 'inactive-' . $rowTpl->id . '-' . $row['employee']->id;
+                            $rowAssigned = $rowTpl->assignedEmployees();
+                            $rowWarnLabel = $rowTpl->employee_id
+                                ? 'Personal KPI — ' . $row['employee']->full_name
+                                : $row['division_name'] . ' — ' . ($row['sub_division_name'] ?? 'All') . ($row['position_name'] ? ' — ' . $row['position_name'] : '');
+                            $rowWarnAssigned = $rowAssigned->count() > 1
+                                ? 'This is currently linked to ' . $rowAssigned->count() . ' employees (' . $rowAssigned->pluck('full_name')->implode(', ') . ') — deleting it removes their KPI/progress too.'
+                                : '';
+                        @endphp
                         <tr class="transition" style="background:#f9fafb;">
                             <td class="px-2 py-2 text-xs font-medium" style="color:#9ca3af;">
                                 {{ $row['employee']->full_name }}
@@ -412,16 +453,37 @@
                             <td class="px-2 py-2 text-xs" style="color:#b0b5bd;">{{ $row['division_name'] ?? '—' }}</td>
                             <td class="px-2 py-2 text-xs" style="color:#b0b5bd;">{{ $row['position_name'] ?? 'All' }}</td>
                             <td class="px-2 py-2 text-xs text-center" style="color:#b0b5bd;">{{ $row['area_count'] }}</td>
-                            <td class="px-2 py-2 text-right">
-                                <button type="button"
-                                    @if($row['template']->employee_id)
-                                        onclick="loadPersonalTemplate({{ $row['employee']->id }})"
-                                    @else
-                                        onclick="loadTemplate({{ $row['division_id'] ?? 'null' }}, {{ $row['sub_division_id'] ?? 'null' }}, {{ $row['position_id'] ?? 'null' }})"
-                                    @endif
-                                    class="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-md transition" style="background:#f3f4f6;color:#374151;border:none;cursor:pointer;">
-                                    View
+                            <td class="px-2 py-2 text-right relative">
+                                <button type="button" onclick="toggleActionsMenu(event, '{{ $rowMenuKey }}')" title="Actions"
+                                    class="inline-flex items-center justify-center w-7 h-7 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
                                 </button>
+                                <div id="actions-menu-{{ $rowMenuKey }}" class="actions-menu" style="display:none;position:fixed;z-index:1000;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:140px;overflow:hidden;">
+                                    @if($rowTpl->employee_id)
+                                    <button type="button" onclick="loadPersonalTemplate({{ $row['employee']->id }}); closeAllActionMenus();"
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/><path d="M17.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 8.5-8.5z"/></svg>
+                                        Edit
+                                    </button>
+                                    @else
+                                    <button type="button" onclick="loadTemplate({{ $row['division_id'] ?? 'null' }}, {{ $row['sub_division_id'] ?? 'null' }}, {{ $row['position_id'] ?? 'null' }}); closeAllActionMenus();"
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5"/><path d="M17.5 3.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 8.5-8.5z"/></svg>
+                                        Edit
+                                    </button>
+                                    @endif
+                                    <button type="button" onclick='duplicateTemplate(@json($rowTpl->kpi_data)); closeAllActionMenus();'
+                                        title="Use this template's KPI table as the starting point for a new Division/Sub-Division/Position"
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                        Use Template
+                                    </button>
+                                    <button type="button" onclick='openDeleteConfirm({{ $rowTpl->id }}, @json($rowWarnLabel), @json($rowWarnAssigned))'
+                                        class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 002 2h6a2 2 0 002-2l1-12"/><path d="M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+                                        Delete
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         @empty
@@ -444,12 +506,6 @@
                 <h3 class="text-base font-semibold text-gray-900">📋 Employees Needing a KPI</h3>
                 <p class="text-xs text-gray-500 mt-1">
                     {{ $employeesNeedingKpi->count() }} {{ \Illuminate\Support\Str::plural('employee', $employeesNeedingKpi->count()) }} need{{ $employeesNeedingKpi->count() === 1 ? 's' : '' }} a KPI
-                    @if(($employeesAlreadyCoveredCount ?? 0) > 0)
-                        · {{ $employeesAlreadyCoveredCount }} already {{ $employeesAlreadyCoveredCount === 1 ? 'has' : 'have' }} one
-                    @endif
-                    @if(($employeesWithoutContractCount ?? 0) > 0)
-                        · {{ $employeesWithoutContractCount }} {{ \Illuminate\Support\Str::plural('employee', $employeesWithoutContractCount) }} not showing — see notification above
-                    @endif
                 </p>
             </div>
             @if($employeesNeedingKpi->isNotEmpty())
