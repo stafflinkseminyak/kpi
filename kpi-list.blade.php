@@ -122,11 +122,6 @@
                         @forelse ($templates as $tpl)
                         @php
                             $assigned = $tpl->assignedEmployees();
-                            // Only dim a template when EVERY employee it currently covers has
-                            // left — a position-level template still actively covering at
-                            // least one active employee stays normal, even if someone else
-                            // who used to hold that position is now terminated.
-                            $allAssignedTerminated = $assigned->isNotEmpty() && $assigned->every(fn ($e) => $e->status === 'terminated');
 
                             // For a personal (employee_id) template, show this employee's
                             // CURRENT Division/Sub-Division/Position live, via the same
@@ -146,11 +141,11 @@
                                 $displayPosition = $tpl->position;
                             }
                         @endphp
-                        <tr class="transition" style="{{ $allAssignedTerminated ? 'background:#f3f4f6;' : '' }}" @if(!$allAssignedTerminated) onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''" @endif>
-                            <td class="py-2 text-xs font-medium" style="padding-left:18px;padding-right:8px;color:{{ $allAssignedTerminated ? '#9ca3af' : '#111827' }};">{{ $displayDivision?->name ?? '-' }}</td>
-                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $displaySubDivision?->name ?? 'All' }}</td>
-                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $displayPosition?->name ?? 'All' }}</td>
-                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">@php $kd = $tpl->kpi_data ?? []; $cnt = collect($kd)->filter(fn($v,$k) => is_numeric($k))->count(); @endphp {{ $cnt }}</td>
+                        <tr class="transition" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''">
+                            <td class="py-2 text-xs font-medium text-gray-900" style="padding-left:18px;padding-right:8px;">{{ $displayDivision?->name ?? '-' }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">{{ $displaySubDivision?->name ?? 'All' }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">{{ $displayPosition?->name ?? 'All' }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">@php $kd = $tpl->kpi_data ?? []; $cnt = collect($kd)->filter(fn($v,$k) => is_numeric($k))->count(); @endphp {{ $cnt }}</td>
                             <td class="py-2 text-right relative" style="padding-left:8px;padding-right:18px;">
                                 @php
                                     $warnLabel = $tpl->employee_id
@@ -348,11 +343,11 @@
                 <table class="w-full">
                     <thead style="background:#e6f1ec;position:sticky;top:0;">
                         <tr>
-                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                            <th class="py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider" style="padding-left:18px;padding-right:8px;">Employee</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Division</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Position</th>
                             <th class="px-2 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">Areas</th>
-                            <th class="px-2 py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                            <th class="py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider" style="padding-left:8px;padding-right:18px;">Action</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -369,11 +364,11 @@
                                 : '';
                         @endphp
                         <tr class="hover:bg-gray-50 transition">
-                            <td class="px-2 py-2 text-xs font-medium text-gray-900">{{ $row['employee']->full_name }}</td>
+                            <td class="py-2 text-xs font-medium text-gray-900" style="padding-left:18px;padding-right:8px;">{{ $row['employee']->full_name }}</td>
                             <td class="px-2 py-2 text-xs text-gray-600">{{ $row['division_name'] ?? '—' }}</td>
                             <td class="px-2 py-2 text-xs text-gray-600">{{ $row['position_name'] ?? 'All' }}</td>
                             <td class="px-2 py-2 text-xs text-gray-600 text-center">{{ $row['area_count'] }}</td>
-                            <td class="px-2 py-2 text-right relative">
+                            <td class="py-2 text-right relative" style="padding-left:8px;padding-right:18px;">
                                 <button type="button" onclick="toggleActionsMenu(event, '{{ $rowMenuKey }}')" title="Actions"
                                     class="inline-flex items-center justify-center w-7 h-7 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
@@ -423,11 +418,11 @@
                 <table class="w-full">
                     <thead style="background:#f3f4f6;position:sticky;top:0;">
                         <tr>
-                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                            <th class="py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider" style="padding-left:18px;padding-right:8px;">Employee</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Division</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Position</th>
                             <th class="px-2 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">Areas</th>
-                            <th class="px-2 py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                            <th class="py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider" style="padding-left:8px;padding-right:18px;">Action</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -444,14 +439,14 @@
                                 : '';
                         @endphp
                         <tr class="transition" style="background:#f9fafb;">
-                            <td class="px-2 py-2 text-xs font-medium" style="color:#9ca3af;">
+                            <td class="py-2 text-xs font-medium" style="padding-left:18px;padding-right:8px;color:#9ca3af;">
                                 {{ $row['employee']->full_name }}
                                 <span style="display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:#e5e7eb;color:#6b7280;white-space:nowrap;">Terminated</span>
                             </td>
                             <td class="px-2 py-2 text-xs" style="color:#b0b5bd;">{{ $row['division_name'] ?? '—' }}</td>
                             <td class="px-2 py-2 text-xs" style="color:#b0b5bd;">{{ $row['position_name'] ?? 'All' }}</td>
                             <td class="px-2 py-2 text-xs text-center" style="color:#b0b5bd;">{{ $row['area_count'] }}</td>
-                            <td class="px-2 py-2 text-right relative">
+                            <td class="py-2 text-right relative" style="padding-left:8px;padding-right:18px;">
                                 <button type="button" onclick="toggleActionsMenu(event, '{{ $rowMenuKey }}')" title="Actions"
                                     class="inline-flex items-center justify-center w-7 h-7 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
