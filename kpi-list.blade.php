@@ -110,11 +110,11 @@
                 <table class="w-full">
                     <thead class="bg-[#e6f1ec]">
                         <tr>
-                            <th class="pl-4 pr-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Division</th>
+                            <th class="py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider" style="padding-left:18px;padding-right:8px;">Division</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Sub-Division</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Position</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Areas</th>
-                            <th class="pl-2 pr-4 py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            <th class="py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider" style="padding-left:8px;padding-right:18px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -147,11 +147,11 @@
                             }
                         @endphp
                         <tr class="transition" style="{{ $allAssignedTerminated ? 'background:#f3f4f6;' : '' }}" @if(!$allAssignedTerminated) onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background=''" @endif>
-                            <td class="pl-4 pr-2 py-2 text-xs font-medium" style="color:{{ $allAssignedTerminated ? '#9ca3af' : '#111827' }};">{{ $displayDivision?->name ?? '-' }}</td>
+                            <td class="py-2 text-xs font-medium" style="padding-left:18px;padding-right:8px;color:{{ $allAssignedTerminated ? '#9ca3af' : '#111827' }};">{{ $displayDivision?->name ?? '-' }}</td>
                             <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $displaySubDivision?->name ?? 'All' }}</td>
                             <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">{{ $displayPosition?->name ?? 'All' }}</td>
                             <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">@php $kd = $tpl->kpi_data ?? []; $cnt = collect($kd)->filter(fn($v,$k) => is_numeric($k))->count(); @endphp {{ $cnt }}</td>
-                            <td class="pl-2 pr-4 py-2 text-right relative">
+                            <td class="py-2 text-right relative" style="padding-left:8px;padding-right:18px;">
                                 @php
                                     $warnLabel = $tpl->employee_id
                                         ? 'Personal KPI — ' . ($tpl->employee?->full_name ?? 'this employee')
@@ -395,10 +395,10 @@
                                     </button>
                                     @endif
                                     <button type="button" onclick='duplicateTemplate(@json($rowTpl->kpi_data)); closeAllActionMenus();'
-                                        title="Use this template's KPI table as the starting point for a new Division/Sub-Division/Position"
+                                        title="Copy this KPI's table into a new Division/Sub-Division/Position"
                                         class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                                        Use Template
+                                        Duplicate
                                     </button>
                                     <button type="button" onclick='openDeleteConfirm({{ $rowTpl->id }}, @json($rowWarnLabel), @json($rowWarnAssigned))'
                                         class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition">
@@ -473,10 +473,10 @@
                                     </button>
                                     @endif
                                     <button type="button" onclick='duplicateTemplate(@json($rowTpl->kpi_data)); closeAllActionMenus();'
-                                        title="Use this template's KPI table as the starting point for a new Division/Sub-Division/Position"
+                                        title="Copy this KPI's table into a new Division/Sub-Division/Position"
                                         class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                                        Use Template
+                                        Duplicate
                                     </button>
                                     <button type="button" onclick='openDeleteConfirm({{ $rowTpl->id }}, @json($rowWarnLabel), @json($rowWarnAssigned))'
                                         class="w-full flex items-center gap-2 text-left px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition">
