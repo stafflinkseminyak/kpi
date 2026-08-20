@@ -114,7 +114,6 @@
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Sub-Division</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Position</th>
                             <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Areas</th>
-                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Assigned</th>
                             <th class="px-2 py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
@@ -157,19 +156,6 @@
                                 @endif
                             </td>
                             <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">@php $kd = $tpl->kpi_data ?? []; $cnt = collect($kd)->filter(fn($v,$k) => is_numeric($k))->count(); @endphp {{ $cnt }}</td>
-                            <td class="px-2 py-2 text-xs" style="color:{{ $allAssignedTerminated ? '#b0b5bd' : '#4b5563' }};">
-                                @if($assigned->isEmpty())
-                                    <span class="text-gray-400 italic">No one yet</span>
-                                @else
-                                    <span title="{{ $assigned->pluck('full_name')->implode(', ') }}">
-                                        {{ $assigned->count() }} {{ \Illuminate\Support\Str::plural('person', $assigned->count()) }}
-                                        @if($allAssignedTerminated)
-                                            <span style="display:inline-block;margin-left:4px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:#e5e7eb;color:#6b7280;white-space:nowrap;">Terminated</span>
-                                        @endif
-                                        <span class="text-gray-400">({{ $assigned->pluck('first_name')->take(2)->implode(', ') }}{{ $assigned->count() > 2 ? ', ...' : '' }})</span>
-                                    </span>
-                                @endif
-                            </td>
                             <td class="px-2 py-2 text-right relative">
                                 @php
                                     $warnLabel = $tpl->employee_id
@@ -216,7 +202,7 @@
                             </td>
                         </tr>
                         @empty
-                        <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400 text-xs">No KPI templates saved yet.</td></tr>
+                        <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 text-xs">No KPI templates saved yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -308,6 +294,145 @@
             </section>
         </div>
 
+        {{-- Not an "action" list like "Employees Needing a KPI" below — a
+             data-fixing notification. These employees' Employee record has no
+             contract_id linked, so their Division/Sub-Division/Position can't
+             be resolved at all (same reason they'd be missing from Active/
+             Inactive KPI below too). Fix the link on their profile first,
+             then they'll fall into the KPI-needed list like everyone else. --}}
+        @if($employeesWithoutContractCount > 0)
+        <section class="bg-white rounded-lg shadow border border-gray-100">
+            <div class="px-4 pt-3 pb-1">
+                <p class="text-xs font-semibold" style="color:#991b1b;">⚠️ {{ $employeesWithoutContractCount }} {{ \Illuminate\Support\Str::plural('employee', $employeesWithoutContractCount) }} not linked to a Contract yet, so their Division/Position is unknown.</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead style="background:#fee2e2;">
+                        <tr>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Employee</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Division (from profile)</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Status</th>
+                            <th class="px-2 py-2 text-right text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach($employeesWithoutContract as $e)
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-2 py-2 text-xs font-medium text-gray-900">{{ $e->full_name }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">{{ $e->division?->name ?? '—' }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">{{ ucfirst(str_replace('-', ' ', $e->status)) }}</td>
+                            <td class="px-2 py-2 text-right">
+                                <a href="{{ route('admin.linkers-hub.employee-profile', $e->id) }}"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition"
+                                    style="background-color:#991b1b !important; color:white !important; text-decoration:none;">
+                                    View Profile
+                                </a>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        @endif
+
+        {{-- Who actually has a working KPI right now, and who doesn't — split
+             out of "Saved KPI Templates" (that card is template metadata only:
+             which Division/Sub-Division/Position/Person a template is set up
+             for, not who it currently covers). Active = resolved KPI, still
+             employed. Inactive = resolved KPI, but the employee has since
+             left — their KPI data is still on file, just no longer in force. --}}
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+        <section class="bg-white rounded-lg shadow border border-gray-100">
+            <div class="p-4 border-b">
+                <h3 class="text-base font-semibold text-gray-900">✅ Active KPI</h3>
+                <p class="text-xs text-gray-500 mt-1">{{ count($activeKpi) }} {{ \Illuminate\Support\Str::plural('employee', count($activeKpi)) }} currently covered by a KPI.</p>
+            </div>
+            <div class="overflow-x-auto" style="max-height:360px;">
+                <table class="w-full">
+                    <thead style="background:#e6f1ec;position:sticky;top:0;">
+                        <tr>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Division</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Position</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">Areas</th>
+                            <th class="px-2 py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @forelse($activeKpi as $row)
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-2 py-2 text-xs font-medium text-gray-900">{{ $row['employee']->full_name }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">{{ $row['division_name'] ?? '—' }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600">{{ $row['position_name'] ?? 'All' }}</td>
+                            <td class="px-2 py-2 text-xs text-gray-600 text-center">{{ $row['area_count'] }}</td>
+                            <td class="px-2 py-2 text-right">
+                                <button type="button"
+                                    @if($row['template']->employee_id)
+                                        onclick="loadPersonalTemplate({{ $row['employee']->id }})"
+                                    @else
+                                        onclick="loadTemplate({{ $row['division_id'] ?? 'null' }}, {{ $row['sub_division_id'] ?? 'null' }}, {{ $row['position_id'] ?? 'null' }})"
+                                    @endif
+                                    class="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-md transition" style="background:#f3f4f6;color:#374151;border:none;cursor:pointer;">
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 text-xs">No one has an active KPI yet.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="bg-white rounded-lg shadow border border-gray-100">
+            <div class="p-4 border-b">
+                <h3 class="text-base font-semibold text-gray-900">🚫 Inactive KPI</h3>
+                <p class="text-xs text-gray-500 mt-1">{{ count($inactiveKpi) }} terminated {{ \Illuminate\Support\Str::plural('employee', count($inactiveKpi)) }} still {{ count($inactiveKpi) === 1 ? 'has' : 'have' }} KPI data on file.</p>
+            </div>
+            <div class="overflow-x-auto" style="max-height:360px;">
+                <table class="w-full">
+                    <thead style="background:#f3f4f6;position:sticky;top:0;">
+                        <tr>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Division</th>
+                            <th class="px-2 py-2 text-left text-[11px] font-medium text-gray-500 uppercase tracking-wider">Position</th>
+                            <th class="px-2 py-2 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider">Areas</th>
+                            <th class="px-2 py-2 text-right text-[11px] font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @forelse($inactiveKpi as $row)
+                        <tr class="transition" style="background:#f9fafb;">
+                            <td class="px-2 py-2 text-xs font-medium" style="color:#9ca3af;">
+                                {{ $row['employee']->full_name }}
+                                <span style="display:inline-block;margin-left:6px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:10px;background:#e5e7eb;color:#6b7280;white-space:nowrap;">Terminated</span>
+                            </td>
+                            <td class="px-2 py-2 text-xs" style="color:#b0b5bd;">{{ $row['division_name'] ?? '—' }}</td>
+                            <td class="px-2 py-2 text-xs" style="color:#b0b5bd;">{{ $row['position_name'] ?? 'All' }}</td>
+                            <td class="px-2 py-2 text-xs text-center" style="color:#b0b5bd;">{{ $row['area_count'] }}</td>
+                            <td class="px-2 py-2 text-right">
+                                <button type="button"
+                                    @if($row['template']->employee_id)
+                                        onclick="loadPersonalTemplate({{ $row['employee']->id }})"
+                                    @else
+                                        onclick="loadTemplate({{ $row['division_id'] ?? 'null' }}, {{ $row['sub_division_id'] ?? 'null' }}, {{ $row['position_id'] ?? 'null' }})"
+                                    @endif
+                                    class="inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-md transition" style="background:#f3f4f6;color:#374151;border:none;cursor:pointer;">
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr><td colspan="5" class="px-4 py-6 text-center text-gray-400 text-xs">No inactive KPI data.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        </div>
+
         {{-- Everyone with a contract but no KPI template resolving to them yet (same
              Division/Sub-Division/Position resolution as KpiTemplate::forEmployee(),
              so this can never disagree with the Performance page or Employee Profile
@@ -323,7 +448,7 @@
                         · {{ $employeesAlreadyCoveredCount }} already {{ $employeesAlreadyCoveredCount === 1 ? 'has' : 'have' }} one
                     @endif
                     @if(($employeesWithoutContractCount ?? 0) > 0)
-                        · {{ $employeesWithoutContractCount }} {{ \Illuminate\Support\Str::plural('employee', $employeesWithoutContractCount) }} not showing — see below
+                        · {{ $employeesWithoutContractCount }} {{ \Illuminate\Support\Str::plural('employee', $employeesWithoutContractCount) }} not showing — see notification above
                     @endif
                 </p>
             </div>
@@ -367,48 +492,6 @@
                         @endforeach
                     </tbody>
                 </table>
-            </div>
-            @endif
-
-            {{-- Not an "action" list like the one above — a data-fixing list. These
-                 employees' Employee record has no contract_id linked, so their
-                 Division/Sub-Division/Position can't be resolved at all (same reason
-                 they'd be missing from a Saved Template's "Assigned" count too).
-                 Fix the link on their profile first, then they'll fall into the
-                 KPI-needed list above like everyone else. --}}
-            @if($employeesWithoutContractCount > 0)
-            <div class="border-t border-gray-100">
-                <div class="px-4 pt-3 pb-1">
-                    <p class="text-xs font-semibold" style="color:#991b1b;">⚠️ {{ $employeesWithoutContractCount }} {{ \Illuminate\Support\Str::plural('employee', $employeesWithoutContractCount) }} not shown above — profile isn't linked to a Contract yet, so their Division/Position is unknown.</p>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead style="background:#fee2e2;">
-                            <tr>
-                                <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Employee</th>
-                                <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Division (from profile)</th>
-                                <th class="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Status</th>
-                                <th class="px-2 py-2 text-right text-[11px] font-medium uppercase tracking-wider" style="color:#991b1b;">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            @foreach($employeesWithoutContract as $e)
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="px-2 py-2 text-xs font-medium text-gray-900">{{ $e->full_name }}</td>
-                                <td class="px-2 py-2 text-xs text-gray-600">{{ $e->division?->name ?? '—' }}</td>
-                                <td class="px-2 py-2 text-xs text-gray-600">{{ ucfirst(str_replace('-', ' ', $e->status)) }}</td>
-                                <td class="px-2 py-2 text-right">
-                                    <a href="{{ route('admin.linkers-hub.employee-profile', $e->id) }}"
-                                        class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition"
-                                        style="background-color:#991b1b !important; color:white !important; text-decoration:none;">
-                                        View Profile
-                                    </a>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
             </div>
             @endif
         </section>

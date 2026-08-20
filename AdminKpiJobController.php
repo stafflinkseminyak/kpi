@@ -258,10 +258,63 @@ public function index(Request $request)
         // division_id when there's no Contract to read one from.
         $employeesForKpiPicker = $nonTerminatedEmployees->values();
 
+        // ==================== ACTIVE / INACTIVE KPI ====================
+        // "Saved KPI Templates" is now template metadata only — who a template
+        // actually covers lives here instead, split by employee (not by
+        // template) so someone with a personal KPI override is never
+        // double-counted against the broader position-level template they'd
+        // otherwise also match. Uses the exact same authoritative resolution
+        // as everywhere else (KpiTemplate::forEmployee()) so this can never
+        // disagree with the Performance page or Employee Profile about who's
+        // covered. Active = has a resolved KPI and hasn't left the company.
+        // Inactive = has a resolved KPI but the employee is terminated — the
+        // data is still on file but no longer "in force".
+        //
+        // Candidate pool = everyone with a Contract (regardless of status,
+        // same pool "Employees Needing a KPI" uses) UNION everyone with a
+        // personal KPI override — the latter covers someone like an intern
+        // assigned a Division/Position directly on the Employee page, with
+        // no Contract at all, whose personal template Employee::
+        // resolvedPositionIds() still resolves correctly (see that method).
+        $personalTemplateEmployeeIds = \App\Models\KpiTemplate::whereNotNull('employee_id')->pluck('employee_id');
+        $kpiCandidateIds = $allEmployeesWithContractRegardlessOfStatus->pluck('id')
+            ->merge($personalTemplateEmployeeIds)
+            ->unique();
+        $kpiCandidateEmployees = \App\Models\Employee::with(['contract', 'division'])
+            ->whereIn('id', $kpiCandidateIds)
+            ->orderBy('first_name')
+            ->get();
+
+        $activeKpi = [];
+        $inactiveKpi = [];
+        foreach ($kpiCandidateEmployees as $e) {
+            $tpl = \App\Models\KpiTemplate::forEmployee($e);
+            if (!$tpl || empty($tpl->areas())) {
+                continue;
+            }
+            $ids = $e->resolvedPositionIds();
+            $row = [
+                'employee' => $e,
+                'template' => $tpl,
+                'division_id' => $ids['division_id'],
+                'sub_division_id' => $ids['sub_division_id'],
+                'position_id' => $ids['position_id'],
+                'division_name' => $ids['division_id'] ? optional($divisionsById->get($ids['division_id']))->name : null,
+                'sub_division_name' => $ids['sub_division_id'] ? optional($subDivisionsById->get($ids['sub_division_id']))->name : null,
+                'position_name' => $ids['position_id'] ? optional($positionsById->get($ids['position_id']))->name : null,
+                'area_count' => count($tpl->areas()),
+            ];
+            if ($e->status === 'terminated') {
+                $inactiveKpi[] = $row;
+            } else {
+                $activeKpi[] = $row;
+            }
+        }
+
         return view('admin.kpi.kpi-list', compact(
             'records', 'isSuperAdmin', 'divisions', 'subDivisions', 'positions', 'employeesNeedingKpi',
             'employeesWithoutContract', 'employeesWithoutContractCount', 'employeesAlreadyCoveredCount',
-            'employeesForKpiPicker'
+            'employeesForKpiPicker', 'activeKpi', 'inactiveKpi'
         ));
     }
 
