@@ -245,7 +245,7 @@
                                     <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:36px;border:1px solid #1f5f46;">No.</th>
                                     <th style="padding:7px 9px;text-align:left;font-weight:700;color:#fff;width:200px;border:1px solid #1f5f46;">Key Result Areas</th>
                                     <th style="padding:7px 9px;text-align:left;font-weight:700;color:#fff;border:1px solid #1f5f46;">Key Performance Indicators</th>
-                                    <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:60px;border:1px solid #1f5f46;">Weight</th>
+                                    <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:60px;border:1px solid #1f5f46;">Weight (%)</th>
                                     <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:130px;border:1px solid #1f5f46;">Target</th>
                                     <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:100px;border:1px solid #1f5f46;">Actual</th>
                                     <th style="padding:7px 9px;text-align:center;font-weight:700;color:#fff;width:60px;border:1px solid #1f5f46;">Score</th>
@@ -299,9 +299,7 @@
         <section class="bg-white rounded-lg shadow border border-gray-100">
             <div class="p-4 border-b">
                 <h3 class="text-base font-semibold text-gray-900">🔔 Notification</h3>
-            </div>
-            <div class="px-4 pt-3 pb-1">
-                <p class="text-xs font-semibold" style="color:#991b1b;">⚠️ {{ $employeesWithoutContractCount }} {{ \Illuminate\Support\Str::plural('employee', $employeesWithoutContractCount) }} not linked to a Contract yet, so their Division/Position is unknown.</p>
+                <p class="text-xs font-semibold mt-1" style="color:#991b1b;">⚠️ {{ $employeesWithoutContractCount }} {{ \Illuminate\Support\Str::plural('employee', $employeesWithoutContractCount) }} not linked to a Contract yet, so their Division/Position is unknown.</p>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full">
@@ -796,6 +794,19 @@
 
                         td.appendChild(kpiWrap); td.appendChild(kpiEnInput); tr.appendChild(td);
                         return;
+                    }
+
+                    // Weight is always a percentage — auto-append "%" on blur so typing a
+                    // plain number (e.g. "50") reads back as "50%" without the admin having
+                    // to type the sign themselves. Same light, non-destructive formatting
+                    // Target already gets for its Percentage type (formatByType), and the
+                    // weight total banner already strips non-numeric characters before
+                    // summing, so this never breaks that calculation.
+                    if (f.key === 'weight') {
+                        input.addEventListener('blur', function() {
+                            input.value = formatByType(input.value, 'percentage');
+                            input.title = input.value;
+                        });
                     }
 
                     td.appendChild(input); tr.appendChild(td);
